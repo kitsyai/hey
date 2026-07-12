@@ -1,0 +1,12 @@
+id: distribution
+short_id: c2faf287e32c
+name: distribution
+capacity_profiles:
+  - backend_team
+constraints:
+  max_concurrent_tasks: 6
+  allowed_types:
+    - feature
+    - bug
+    - chore
+    - spike
