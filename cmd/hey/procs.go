@@ -28,13 +28,14 @@ func cmdPs(args []string) error {
 	}
 	if len(procs) == 0 {
 		fmt.Println("no UI apps running")
-		return nil
+	} else {
+		fmt.Printf("%-12s %-8s %-24s %s\n", "APP", "PID", "URL", "UPTIME")
+		for _, p := range procs {
+			fmt.Printf("%-12s %-8d %-24s %s\n",
+				p.App, p.PID, p.URL, time.Since(p.Started).Round(time.Second))
+		}
 	}
-	fmt.Printf("%-12s %-8s %-24s %s\n", "APP", "PID", "URL", "UPTIME")
-	for _, p := range procs {
-		fmt.Printf("%-12s %-8d %-24s %s\n",
-			p.App, p.PID, p.URL, time.Since(p.Started).Round(time.Second))
-	}
+	svcSummary()
 	return nil
 }
 

@@ -18,8 +18,9 @@ Usage:
   hey install <app>[@version]        fetch + verify without running
   hey update [<app>]                 re-resolve latest and fetch if newer
   hey ls                             list installed apps
-  hey ps                             list running UI apps
+  hey ps                             list running UI apps and services
   hey stop <app>                     stop a running UI app
+  hey svc <up|ls|stop|start|logs|conn|rm>  manage local services
   hey which <app>                    print path of the installed binary
   hey cache clean [<app>]            remove cached binaries
   hey version                        print hey's version
@@ -71,6 +72,8 @@ func main() {
 		err = cmdCache(args[1:])
 	case "run":
 		err = cmdRun(args[1:])
+	case "svc":
+		err = cmdSvc(args[1:])
 	default:
 		err = cmdRun(args) // implicit run: hey <app> [args...]
 	}
