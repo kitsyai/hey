@@ -3,7 +3,7 @@ id: TASK-HEY-UNIN-REMO-HEY-IF-1
 short_id: 280e3a7e09a7
 title: hey uninstall — remove hey as if it was never there
 type: feature
-status: in_progress
+status: done
 created: 2026-07-13
 updated: 2026-07-13
 aliases: []
