@@ -91,6 +91,55 @@ func TestRejectsHTTPRegistryURL(t *testing.T) {
 	}
 }
 
+func TestEmbeddedDefaultHasHeypkvScope(t *testing.T) {
+	r, err := Load("", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	url, err := r.ManifestURL("heypkv", "main", "beta")
+	if err != nil {
+		t.Fatalf("resolve heypkv scope: %v", err)
+	}
+	if url != "https://cdn.heypkv.ai/hey/main/beta.json" {
+		t.Errorf("manifest url = %q", url)
+	}
+	// Default channel applies when none is given.
+	url, err = r.ManifestURL("heypkv", "main", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if url != "https://cdn.heypkv.ai/hey/main/stable.json" {
+		t.Errorf("default-channel url = %q", url)
+	}
+}
+
+func TestUnknownScopeErrors(t *testing.T) {
+	r, _ := Load("", t.TempDir())
+	if _, err := r.ManifestURL("nope", "x", ""); err == nil || !strings.Contains(err.Error(), "unknown scope") {
+		t.Errorf("unknown scope should error, got %v", err)
+	}
+}
+
+func TestScopeOnlyRegistryLoads(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "r.json")
+	os.WriteFile(f, []byte(`{"hey_registry":0,"scopes":{"acme":{"manifest_url":"https://acme.example/{id}/{channel}.json"}}}`), 0o644)
+	r, err := Load(f, t.TempDir())
+	if err != nil {
+		t.Fatalf("scope-only registry should load: %v", err)
+	}
+	if _, ok := r.Scopes["acme"]; !ok {
+		t.Error("acme scope missing")
+	}
+}
+
+func TestScopeRejectsBadTemplate(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "r.json")
+	os.WriteFile(f, []byte(`{"hey_registry":0,"scopes":{"acme":{"manifest_url":"https://acme.example/no-placeholders.json"}}}`), 0o644)
+	if _, err := Load(f, t.TempDir()); err == nil || !strings.Contains(err.Error(), "placeholders") {
+		t.Errorf("scope without placeholders should fail, got %v", err)
+	}
+}
+
 func TestAssetNameAndTag(t *testing.T) {
 	s := Source{
 		Repo: "kitsyai/guten", TagPrefix: "cli/",

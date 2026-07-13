@@ -33,10 +33,21 @@ var Reserved = []string{
 	"cache", "version", "help", "svc",
 }
 
-// Registry maps app names to their sources.
+// Registry maps app names to their sources, and scopes to manifest-URL
+// templates (the deploy track, see docs/deployment-manifest-v0.md).
 type Registry struct {
-	HeyRegistry int            `json:"hey_registry"`
-	Apps        map[string]App `json:"apps"`
+	HeyRegistry int              `json:"hey_registry"`
+	Apps        map[string]App   `json:"apps"`
+	Scopes      map[string]Scope `json:"scopes,omitempty"`
+}
+
+// Scope maps a deploy scope (the "heypkv" in @heypkv/main) to a manifest URL
+// template. The template is the ONLY producer-specific data hey holds: it
+// contains {id} and {channel} placeholders and nothing else. This is the whole
+// integration seam — no product knowledge enters hey.
+type Scope struct {
+	ManifestURL    string `json:"manifest_url"`
+	DefaultChannel string `json:"default_channel,omitempty"`
 }
 
 // App is one runnable tool.
@@ -105,15 +116,58 @@ func parse(data []byte, from string) (*Registry, error) {
 	if r.HeyRegistry > SchemaVersion {
 		return nil, fmt.Errorf("registry (%s) uses format v%d; this hey only understands v%d — update hey", from, r.HeyRegistry, SchemaVersion)
 	}
-	if len(r.Apps) == 0 {
-		return nil, fmt.Errorf("registry (%s) lists no apps", from)
+	if len(r.Apps) == 0 && len(r.Scopes) == 0 {
+		return nil, fmt.Errorf("registry (%s) lists no apps or scopes", from)
 	}
 	for name, app := range r.Apps {
 		if err := validateApp(name, app); err != nil {
 			return nil, fmt.Errorf("registry (%s): %w", from, err)
 		}
 	}
+	for scope, s := range r.Scopes {
+		if err := validateScope(scope, s); err != nil {
+			return nil, fmt.Errorf("registry (%s): %w", from, err)
+		}
+	}
 	return &r, nil
+}
+
+func validateScope(scope string, s Scope) error {
+	if strings.ContainsAny(scope, `/\@ `) || scope == "" {
+		return fmt.Errorf("invalid scope name %q", scope)
+	}
+	if !strings.HasPrefix(s.ManifestURL, "https://") {
+		return fmt.Errorf("scope %q: manifest_url must be https, got %q", scope, s.ManifestURL)
+	}
+	if !strings.Contains(s.ManifestURL, "{id}") || !strings.Contains(s.ManifestURL, "{channel}") {
+		return fmt.Errorf("scope %q: manifest_url must contain {id} and {channel} placeholders", scope)
+	}
+	return nil
+}
+
+// ManifestURL resolves a scope's manifest URL template for an id and channel.
+// An empty channel falls back to the scope's default_channel, else "stable".
+func (r *Registry) ManifestURL(scope, id, channel string) (string, error) {
+	s, ok := r.Scopes[scope]
+	if !ok {
+		known := make([]string, 0, len(r.Scopes))
+		for k := range r.Scopes {
+			known = append(known, k)
+		}
+		sort.Strings(known)
+		if len(known) == 0 {
+			return "", fmt.Errorf("unknown scope %q — this registry defines no scopes", scope)
+		}
+		return "", fmt.Errorf("unknown scope %q — scopes in this registry: %s", scope, strings.Join(known, ", "))
+	}
+	if channel == "" {
+		channel = s.DefaultChannel
+	}
+	if channel == "" {
+		channel = "stable"
+	}
+	url := strings.NewReplacer("{id}", id, "{channel}", channel).Replace(s.ManifestURL)
+	return url, nil
 }
 
 func validateApp(name string, app App) error {

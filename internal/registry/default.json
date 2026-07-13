@@ -25,5 +25,11 @@
       },
       "ui_commands": ["ui"]
     }
+  },
+  "scopes": {
+    "heypkv": {
+      "manifest_url": "https://cdn.heypkv.ai/hey/{id}/{channel}.json",
+      "default_channel": "stable"
+    }
   }
 }
