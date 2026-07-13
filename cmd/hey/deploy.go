@@ -13,6 +13,7 @@ import (
 	"github.com/kitsyai/hey/internal/fetch"
 	"github.com/kitsyai/hey/internal/home"
 	"github.com/kitsyai/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/sign"
 )
 
 // deployOpts carries the flags the deploy (hey.deploy.v1) install/run path
@@ -24,13 +25,15 @@ type deployOpts struct {
 	temp             bool
 	location         string
 	noBrowser        bool
+	allowUntrusted   bool
 	timeout          time.Duration
 }
 
-// resolveManifest turns a classified deploy ref into a validated manifest.
+// resolveManifest turns a classified deploy ref into a validated manifest,
+// enforcing hey's trust tiers before the manifest is parsed or installed.
 // RefAppName is never passed here — those route to the legacy path.
 func resolveManifest(ref deploy.Ref, o deployOpts) (*deploy.Manifest, error) {
-	var url string
+	var url, scope string
 	switch ref.Kind {
 	case deploy.RefManifestURL:
 		url = ref.ManifestURL
@@ -43,11 +46,59 @@ func resolveManifest(ref deploy.Ref, o deployOpts) (*deploy.Manifest, error) {
 		if err != nil {
 			return nil, err
 		}
+		scope = ref.Scope
 	default:
 		return nil, fmt.Errorf("internal: resolveManifest called with a non-manifest ref")
 	}
 	fmt.Fprintf(os.Stderr, "hey: resolving manifest %s\n", url)
-	return deploy.Fetch(url)
+	data, err := deploy.FetchBytes(url)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyTrust(scope, url, data, o); err != nil {
+		return nil, err
+	}
+	return deploy.Parse(data, url)
+}
+
+// verifyTrust enforces the trust tiers (docs/trust-and-signing-v0.md) before a
+// manifest is trusted:
+//   - a registered scope that pins keys MUST carry a valid signature quorum;
+//   - anything else (a direct URL, or a scope with no keys) is UNTRUSTED and
+//     needs --allow-untrusted (checksum integrity only, no authenticity).
+func verifyTrust(scope, url string, manifestBytes []byte, o deployOpts) error {
+	if scope != "" {
+		reg, err := loadRegistry(o.registryOverride)
+		if err != nil {
+			return err
+		}
+		keys, threshold, signed, err := reg.ScopeTrust(scope)
+		if err != nil {
+			return err
+		}
+		if signed {
+			sigBytes, ferr := deploy.FetchBytes(url + ".heysig")
+			if ferr != nil {
+				return fmt.Errorf("@%s pins signing keys but no signature was found at %s.heysig: %w", scope, url, ferr)
+			}
+			signers, verr := sign.Verify(manifestBytes, sigBytes, keys, threshold)
+			if verr != nil {
+				return fmt.Errorf("REFUSING @%s: %w", scope, verr)
+			}
+			fmt.Fprintf(os.Stderr, "hey: verified @%s — signed by %s (%d of %d required)\n",
+				scope, strings.Join(signers, ", "), len(signers), threshold)
+			return nil
+		}
+	}
+	// Untrusted tier: direct URL, or a registered scope with no pinned keys.
+	if !o.allowUntrusted {
+		return fmt.Errorf("UNTRUSTED source %s\n"+
+			"  hey could not verify a publisher signature — a checksum proves the bytes are\n"+
+			"  intact, not that they come from who you think. Re-run with --allow-untrusted to\n"+
+			"  install on your own say-so.", url)
+	}
+	fmt.Fprintf(os.Stderr, "hey: WARNING — installing from an UNVERIFIED source (%s); no publisher signature, integrity only.\n", url)
+	return nil
 }
 
 // installDir resolves where a manifest's bundle should land and returns a

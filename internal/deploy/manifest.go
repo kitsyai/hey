@@ -84,25 +84,29 @@ var Client = &http.Client{Timeout: 30 * time.Second}
 
 // Fetch downloads and parses the manifest at an https URL.
 func Fetch(url string) (*Manifest, error) {
-	if strings.HasPrefix(url, "http://") {
-		return nil, fmt.Errorf("manifest URL must be https: %s", url)
+	data, err := FetchBytes(url)
+	if err != nil {
+		return nil, err
 	}
+	return Parse(data, url)
+}
+
+// FetchBytes downloads the raw bytes at an https URL — a manifest, or its
+// detached ".heysig" signature. Signature verification runs over these exact
+// bytes, so callers verify before Parse.
+func FetchBytes(url string) ([]byte, error) {
 	if !strings.HasPrefix(url, "https://") {
-		return nil, fmt.Errorf("manifest URL must be https: %s", url)
+		return nil, fmt.Errorf("URL must be https: %s", url)
 	}
 	resp, err := Client.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("fetch manifest %s: %w", url, err)
+		return nil, fmt.Errorf("fetch %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch manifest %s: HTTP %d", url, resp.StatusCode)
+		return nil, fmt.Errorf("fetch %s: HTTP %d", url, resp.StatusCode)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxManifestBytes))
-	if err != nil {
-		return nil, fmt.Errorf("read manifest %s: %w", url, err)
-	}
-	return Parse(data, url)
+	return io.ReadAll(io.LimitReader(resp.Body, maxManifestBytes))
 }
 
 // Parse validates raw manifest JSON.

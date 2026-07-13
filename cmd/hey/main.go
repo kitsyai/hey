@@ -25,6 +25,7 @@ Usage:
   hey open <ref>                     open a link artifact (e.g. TestFlight)
   hey which <app>                    print path of the installed binary
   hey cache clean [<app>]            remove cached binaries and bundles
+  hey keygen | sign | verify         publisher signing (ed25519 .heysig)
   hey uninstall                      remove hey and everything it installed
   hey version                        print hey's version
 
@@ -87,6 +88,12 @@ func main() {
 		err = cmdMobile(args[1:])
 	case "open":
 		err = cmdOpen(args[1:])
+	case "keygen":
+		err = cmdKeygen(args[1:])
+	case "sign":
+		err = cmdSign(args[1:])
+	case "verify":
+		err = cmdVerify(args[1:])
 	case "uninstall":
 		err = cmdUninstall(args[1:])
 	default:

@@ -132,7 +132,7 @@ func TestDeployRunWindowE2E(t *testing.T) {
 	srv, bundleHits := serveBundle(t, zipBytes, sha, exeName(), "window", marker)
 
 	manifestURL := srv.URL + "/main.json"
-	if err := cmdRun([]string{"--no-browser", manifestURL}); err != nil {
+	if err := cmdRun([]string{"--no-browser", "--allow-untrusted", manifestURL}); err != nil {
 		t.Fatalf("run deploy bundle: %v", err)
 	}
 	waitMarker(t, marker)
@@ -155,7 +155,7 @@ func TestDeployRunWindowE2E(t *testing.T) {
 	// A second run reuses the cached extraction: the artifact must not be
 	// re-downloaded (the manifest is still fetched to learn the version).
 	os.Remove(marker)
-	if err := cmdRun([]string{"--no-browser", manifestURL}); err != nil {
+	if err := cmdRun([]string{"--no-browser", "--allow-untrusted", manifestURL}); err != nil {
 		t.Fatalf("second run should reuse cache: %v", err)
 	}
 	waitMarker(t, marker)
@@ -182,7 +182,7 @@ func TestDeployRunTempE2E(t *testing.T) {
 	zipBytes, sha := buildProbeZip(t, exeName())
 	srv, _ := serveBundle(t, zipBytes, sha, exeName(), "window", marker)
 
-	if err := cmdRun([]string{"--no-browser", "--temp", srv.URL + "/main.json"}); err != nil {
+	if err := cmdRun([]string{"--no-browser", "--temp", "--allow-untrusted", srv.URL + "/main.json"}); err != nil {
 		t.Fatalf("run --temp: %v", err)
 	}
 	// Foreground run: the marker is written before cmdRun returns.
@@ -221,7 +221,7 @@ func TestDeployScopedRefResolves(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := cmdRun([]string{"--no-browser", "@t/main"}); err != nil {
+	if err := cmdRun([]string{"--no-browser", "--allow-untrusted", "@t/main"}); err != nil {
 		t.Fatalf("run scoped ref: %v", err)
 	}
 	waitMarker(t, marker)

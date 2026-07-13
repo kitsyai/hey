@@ -3,7 +3,7 @@ id: TASK-TRUS-TIER-CONS-GATE-1
 short_id: d5c671f50ad8
 title: Trust tiers + consent gate (registered scope vs direct URL)
 type: feature
-status: todo
+status: done
 created: 2026-07-13
 updated: 2026-07-13
 aliases: []

@@ -40,6 +40,8 @@ func cmdRun(args []string) error {
 			o.noBrowser = true
 		case "--temp":
 			d.temp = true
+		case "--allow-untrusted":
+			d.allowUntrusted = true
 		case "--channel":
 			if i+1 >= len(args) {
 				return fmt.Errorf("--channel needs a value")

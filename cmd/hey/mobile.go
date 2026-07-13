@@ -104,6 +104,7 @@ func mobileDevices(args []string) error {
 
 func mobilePush(args []string) error {
 	var refArg, deviceID, channel string
+	var allowUntrusted bool
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--device":
@@ -118,15 +119,17 @@ func mobilePush(args []string) error {
 			}
 			channel = args[i+1]
 			i++
+		case "--allow-untrusted":
+			allowUntrusted = true
 		default:
 			if refArg != "" {
-				return fmt.Errorf("usage: hey mobile push <ref> [--device <id>] [--channel <c>]")
+				return fmt.Errorf("usage: hey mobile push <ref> [--device <id>] [--channel <c>] [--allow-untrusted]")
 			}
 			refArg = args[i]
 		}
 	}
 	if refArg == "" {
-		return fmt.Errorf("usage: hey mobile push <ref> [--device <id>] [--channel <c>]")
+		return fmt.Errorf("usage: hey mobile push <ref> [--device <id>] [--channel <c>] [--allow-untrusted]")
 	}
 
 	adb, err := findADB()
@@ -141,7 +144,7 @@ func mobilePush(args []string) error {
 	if ref.Kind == deploy.RefAppName {
 		return fmt.Errorf("%q is a github-release app; `hey mobile push` needs a deploy ref (@scope/id or an https manifest URL)", refArg)
 	}
-	m, err := resolveManifest(ref, deployOpts{channel: channel})
+	m, err := resolveManifest(ref, deployOpts{channel: channel, allowUntrusted: allowUntrusted})
 	if err != nil {
 		return err
 	}
@@ -208,6 +211,7 @@ func soleDevice(adb string) (string, error) {
 // TestFlight URL). iOS prerelease uses this instead of a device push.
 func cmdOpen(args []string) error {
 	var refArg, channel string
+	var allowUntrusted bool
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--channel":
@@ -216,15 +220,17 @@ func cmdOpen(args []string) error {
 			}
 			channel = args[i+1]
 			i++
+		case "--allow-untrusted":
+			allowUntrusted = true
 		default:
 			if refArg != "" {
-				return fmt.Errorf("usage: hey open <ref> [--channel <c>]")
+				return fmt.Errorf("usage: hey open <ref> [--channel <c>] [--allow-untrusted]")
 			}
 			refArg = args[i]
 		}
 	}
 	if refArg == "" {
-		return fmt.Errorf("usage: hey open <ref> [--channel <c>]")
+		return fmt.Errorf("usage: hey open <ref> [--channel <c>] [--allow-untrusted]")
 	}
 	ref, err := deploy.ParseRef(refArg)
 	if err != nil {
@@ -233,7 +239,7 @@ func cmdOpen(args []string) error {
 	if ref.Kind == deploy.RefAppName {
 		return fmt.Errorf("%q is a github-release app; `hey open` needs a deploy ref (@scope/id or an https manifest URL)", refArg)
 	}
-	m, err := resolveManifest(ref, deployOpts{channel: channel, timeout: 30 * time.Second})
+	m, err := resolveManifest(ref, deployOpts{channel: channel, allowUntrusted: allowUntrusted, timeout: 30 * time.Second})
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@
 package registry
 
 import (
+	"crypto/ed25519"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/kitsyai/hey/internal/sign"
 )
 
 //go:embed default.json
@@ -31,6 +34,7 @@ const maxRegistryBytes = 1 << 20 // 1 MB
 var Reserved = []string{
 	"run", "install", "update", "ls", "ps", "stop", "which",
 	"cache", "version", "help", "svc", "mobile", "open",
+	"keygen", "sign", "verify", "uninstall",
 }
 
 // Registry maps app names to their sources, and scopes to manifest-URL
@@ -46,8 +50,18 @@ type Registry struct {
 // contains {id} and {channel} placeholders and nothing else. This is the whole
 // integration seam — no product knowledge enters hey.
 type Scope struct {
-	ManifestURL    string `json:"manifest_url"`
-	DefaultChannel string `json:"default_channel,omitempty"`
+	ManifestURL    string     `json:"manifest_url"`
+	DefaultChannel string     `json:"default_channel,omitempty"`
+	Threshold      int        `json:"threshold,omitempty"` // quorum: distinct valid signatures needed (default 1)
+	Keys           []ScopeKey `json:"keys,omitempty"`      // pinned trust parties; empty = unsigned scope
+}
+
+// ScopeKey pins one trust party's ed25519 public key. Multiple keys plus a
+// threshold make trust a quorum (judge & jury) rather than a single point.
+type ScopeKey struct {
+	ID      string `json:"id"`
+	Ed25519 string `json:"ed25519"` // base64 of the 32-byte public key
+	Role    string `json:"role,omitempty"`
 }
 
 // App is one runnable tool.
@@ -142,7 +156,55 @@ func validateScope(scope string, s Scope) error {
 	if !strings.Contains(s.ManifestURL, "{id}") || !strings.Contains(s.ManifestURL, "{channel}") {
 		return fmt.Errorf("scope %q: manifest_url must contain {id} and {channel} placeholders", scope)
 	}
+	if len(s.Keys) > 0 {
+		t := s.Threshold
+		if t == 0 {
+			t = 1
+		}
+		if t < 1 || t > len(s.Keys) {
+			return fmt.Errorf("scope %q: threshold %d must be between 1 and the number of keys (%d)", scope, t, len(s.Keys))
+		}
+		ids := map[string]bool{}
+		for _, k := range s.Keys {
+			if k.ID == "" {
+				return fmt.Errorf("scope %q: a key is missing its id", scope)
+			}
+			if ids[k.ID] {
+				return fmt.Errorf("scope %q: duplicate key id %q", scope, k.ID)
+			}
+			ids[k.ID] = true
+			if _, err := sign.DecodePublic(k.Ed25519); err != nil {
+				return fmt.Errorf("scope %q key %q: %w", scope, k.ID, err)
+			}
+		}
+	}
 	return nil
+}
+
+// ScopeTrust returns the scope's pinned keys (id -> ed25519 public key), its
+// effective quorum threshold, and whether the scope is signed at all. An
+// unsigned scope (no keys) falls to the untrusted, checksum-only tier.
+func (r *Registry) ScopeTrust(scope string) (keys map[string]ed25519.PublicKey, threshold int, signed bool, err error) {
+	s, ok := r.Scopes[scope]
+	if !ok {
+		return nil, 0, false, fmt.Errorf("unknown scope %q", scope)
+	}
+	if len(s.Keys) == 0 {
+		return nil, 0, false, nil
+	}
+	keys = make(map[string]ed25519.PublicKey, len(s.Keys))
+	for _, k := range s.Keys {
+		pub, derr := sign.DecodePublic(k.Ed25519)
+		if derr != nil {
+			return nil, 0, false, fmt.Errorf("scope %q key %q: %w", scope, k.ID, derr)
+		}
+		keys[k.ID] = pub
+	}
+	threshold = s.Threshold
+	if threshold == 0 {
+		threshold = 1
+	}
+	return keys, threshold, true, nil
 }
 
 // ManifestURL resolves a scope's manifest URL template for an id and channel.

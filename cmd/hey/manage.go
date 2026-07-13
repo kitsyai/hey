@@ -12,12 +12,12 @@ import (
 )
 
 func cmdInstall(args []string) error {
-	registryOverride, channel, location, rest, err := takeInstallFlags(args)
+	registryOverride, channel, location, allowUntrusted, rest, err := takeInstallFlags(args)
 	if err != nil {
 		return err
 	}
 	if len(rest) != 1 {
-		return fmt.Errorf("usage: hey install <ref> [--channel <c>] [--location <path>]")
+		return fmt.Errorf("usage: hey install <ref> [--channel <c>] [--location <path>] [--allow-untrusted]")
 	}
 
 	// Deploy refs (@scope/id or a direct https manifest URL) install a
@@ -27,6 +27,7 @@ func cmdInstall(args []string) error {
 			registryOverride: registryOverride,
 			channel:          channel,
 			location:         location,
+			allowUntrusted:   allowUntrusted,
 			timeout:          30 * time.Second,
 		})
 	} else if rerr != nil {
@@ -214,14 +215,16 @@ func cmdCache(args []string) error {
 
 // --- helpers ---
 
-// takeInstallFlags parses the flags `hey install` understands (registry,
-// channel, location) and returns the remaining positional args.
-func takeInstallFlags(args []string) (override, channel, location string, rest []string, err error) {
+// takeInstallFlags parses the flags `hey install` understands and returns the
+// remaining positional args.
+func takeInstallFlags(args []string) (override, channel, location string, allowUntrusted bool, rest []string, err error) {
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--allow-untrusted":
+			allowUntrusted = true
 		case "--registry", "--channel", "--location":
 			if i+1 >= len(args) {
-				return "", "", "", nil, fmt.Errorf("%s needs a value", args[i])
+				return "", "", "", false, nil, fmt.Errorf("%s needs a value", args[i])
 			}
 			switch args[i] {
 			case "--registry":
@@ -236,7 +239,7 @@ func takeInstallFlags(args []string) (override, channel, location string, rest [
 			rest = append(rest, args[i])
 		}
 	}
-	return override, channel, location, rest, nil
+	return override, channel, location, allowUntrusted, rest, nil
 }
 
 func takeRegistryFlag(args []string) (override string, rest []string, err error) {

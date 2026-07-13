@@ -76,7 +76,7 @@ func TestMobilePushInvokesADB(t *testing.T) {
 	logPath := mockADB(t)
 	srv := serveAPKManifest(t)
 
-	if err := cmdMobile([]string{"push", srv.URL + "/pkg.json", "--device", "emulator-5554"}); err != nil {
+	if err := cmdMobile([]string{"push", srv.URL + "/pkg.json", "--device", "emulator-5554", "--allow-untrusted"}); err != nil {
 		t.Fatalf("mobile push: %v", err)
 	}
 
@@ -140,7 +140,7 @@ func TestOpenLink(t *testing.T) {
 	browserOpen = func(url string) error { opened = url; return nil }
 	defer func() { browserOpen = old }()
 
-	if err := cmdOpen([]string{srv.URL + "/pkg.json"}); err != nil {
+	if err := cmdOpen([]string{srv.URL + "/pkg.json", "--allow-untrusted"}); err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	if opened != "https://testflight.apple.com/join/abc" {

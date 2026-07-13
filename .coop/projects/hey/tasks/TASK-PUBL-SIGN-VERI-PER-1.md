@@ -3,7 +3,7 @@ id: TASK-PUBL-SIGN-VERI-PER-1
 short_id: eb8a02d3c312
 title: Publisher signature verification (per-scope trust anchor)
 type: feature
-status: todo
+status: done
 created: 2026-07-13
 updated: 2026-07-13
 aliases: []
@@ -24,4 +24,12 @@ comments:
       signature envelope + hey keygen/sign/verify. Per-scope pinned public keys.
       No third-party tool dep so the protocol can evolve. Keep a seam for future
       immutability/transparency-log (Merkle/blockchain-anchored) verification."
+  - at: 2026-07-13T17:17:33.159Z
+    author: pkvsi
+    body: "Refined: distributed trust, not one key. Envelope carries a LIST of
+      signatures; scope gains a threshold (M-of-N quorum = judge & jury). v0
+      ships 1-of-1 but the format is quorum-shaped. Layer 2 (later): append-only
+      transparency log + per-sig Merkle inclusion proofs, ledger-anchored, so
+      history can't be rewritten (hey included). Spec:
+      docs/trust-and-signing-v0.md."
 ---
