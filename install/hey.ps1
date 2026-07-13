@@ -1,6 +1,6 @@
 # hey installer for Windows — https://github.com/kitsyai/hey
 #
-#   irm https://heypkv.ai/hey.ps1 | iex
+#   irm https://kitsy.ai/hey.ps1 | iex
 #
 # Env overrides: HEY_INSTALL_DIR (default %LOCALAPPDATA%\Programs\hey),
 # HEY_VERSION (default: latest release).

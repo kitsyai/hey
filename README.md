@@ -17,17 +17,17 @@ One line — hey itself is the only thing you ever install by hand:
 
 ```powershell
 # Windows
-irm https://heypkv.ai/hey.ps1 | iex
+irm https://kitsy.ai/hey.ps1 | iex
 ```
 
 ```sh
 # Linux / macOS
-curl -fsSL https://heypkv.ai/hey.sh | sh
+curl -fsSL https://kitsy.ai/hey.sh | sh
 ```
 
 Both scripts resolve the latest release, verify the SHA-256 checksum, and
 put `hey` on your PATH (Windows: `%LOCALAPPDATA%\Programs\hey`; Unix:
-`/usr/local/bin` if writable, else `~/.local/bin`). Until the heypkv.ai
+`/usr/local/bin` if writable, else `~/.local/bin`). Until the kitsy.ai
 endpoints go live, substitute
 `https://raw.githubusercontent.com/kitsyai/hey/main/install/hey.ps1` (or
 `.sh`). Or install manually: grab the archive for your platform from

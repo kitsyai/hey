@@ -1,7 +1,7 @@
 #!/bin/sh
 # hey installer for Linux/macOS — https://github.com/kitsyai/hey
 #
-#   curl -fsSL https://heypkv.ai/hey.sh | sh
+#   curl -fsSL https://kitsy.ai/hey.sh | sh
 #
 # Env overrides: HEY_INSTALL_DIR (default /usr/local/bin if writable,
 # else ~/.local/bin), HEY_VERSION (default: latest release).
@@ -15,7 +15,7 @@ case "$os" in
   Darwin) os=darwin ;;
   *)
     echo "hey installer: unsupported OS '$os' — on Windows use:" >&2
-    echo "  irm https://heypkv.ai/hey.ps1 | iex" >&2
+    echo "  irm https://kitsy.ai/hey.ps1 | iex" >&2
     exit 1
     ;;
 esac
