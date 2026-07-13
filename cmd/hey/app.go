@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/heypkv/hey/internal/fetch"
-	"github.com/heypkv/hey/internal/gh"
-	"github.com/heypkv/hey/internal/home"
-	"github.com/heypkv/hey/internal/registry"
+	"github.com/kitsyai/hey/internal/fetch"
+	"github.com/kitsyai/hey/internal/gh"
+	"github.com/kitsyai/hey/internal/home"
+	"github.com/kitsyai/hey/internal/registry"
 )
 
 // splitAppRef splits "app@1.2.3" (or "app@v1.2.3") into name and version.

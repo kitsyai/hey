@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/heypkv/hey/internal/browser"
-	"github.com/heypkv/hey/internal/contract"
-	"github.com/heypkv/hey/internal/deploy"
-	"github.com/heypkv/hey/internal/home"
-	"github.com/heypkv/hey/internal/proc"
-	"github.com/heypkv/hey/internal/state"
+	"github.com/kitsyai/hey/internal/browser"
+	"github.com/kitsyai/hey/internal/contract"
+	"github.com/kitsyai/hey/internal/deploy"
+	"github.com/kitsyai/hey/internal/home"
+	"github.com/kitsyai/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/state"
 )
 
 type runOpts struct {

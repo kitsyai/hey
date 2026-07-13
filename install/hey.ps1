@@ -1,4 +1,4 @@
-# hey installer for Windows — https://github.com/heypkv/hey
+# hey installer for Windows — https://github.com/kitsyai/hey
 #
 #   irm https://heypkv.ai/hey.ps1 | iex
 #
@@ -6,7 +6,7 @@
 # HEY_VERSION (default: latest release).
 $ErrorActionPreference = "Stop"
 
-$repo = "heypkv/hey"
+$repo = "kitsyai/hey"
 
 $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
     "AMD64" { "amd64" }

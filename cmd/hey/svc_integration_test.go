@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/heypkv/hey/internal/svc"
+	"github.com/kitsyai/hey/internal/svc"
 )
 
 // pgProbe opens a TCP connection and sends a PostgreSQL SSLRequest, confirming

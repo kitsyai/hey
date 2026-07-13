@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/heypkv/hey/internal/home"
-	"github.com/heypkv/hey/internal/svc"
+	"github.com/kitsyai/hey/internal/home"
+	"github.com/kitsyai/hey/internal/svc"
 )
 
 const svcUsage = `hey svc — provision and manage local services

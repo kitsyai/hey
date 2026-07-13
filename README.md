@@ -29,9 +29,9 @@ Both scripts resolve the latest release, verify the SHA-256 checksum, and
 put `hey` on your PATH (Windows: `%LOCALAPPDATA%\Programs\hey`; Unix:
 `/usr/local/bin` if writable, else `~/.local/bin`). Until the heypkv.ai
 endpoints go live, substitute
-`https://raw.githubusercontent.com/heypkv/hey/main/install/hey.ps1` (or
+`https://raw.githubusercontent.com/kitsyai/hey/main/install/hey.ps1` (or
 `.sh`). Or install manually: grab the archive for your platform from
-[Releases](https://github.com/heypkv/hey/releases), verify it against
+[Releases](https://github.com/kitsyai/hey/releases), verify it against
 `checksums.txt`, and drop the binary on your PATH. Pin a version with
 `HEY_VERSION=0.1.0`; relocate with `HEY_INSTALL_DIR`.
 

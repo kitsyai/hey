@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/heypkv/hey/internal/deploy"
-	"github.com/heypkv/hey/internal/fetch"
+	"github.com/kitsyai/hey/internal/deploy"
+	"github.com/kitsyai/hey/internal/fetch"
 )
 
 // buildProbeZip builds the deployprobe helper and zips it at the archive root

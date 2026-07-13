@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/heypkv/hey/internal/deploy"
-	"github.com/heypkv/hey/internal/fetch"
-	"github.com/heypkv/hey/internal/home"
-	"github.com/heypkv/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/deploy"
+	"github.com/kitsyai/hey/internal/fetch"
+	"github.com/kitsyai/hey/internal/home"
+	"github.com/kitsyai/hey/internal/proc"
 )
 
 // deployOpts carries the flags the deploy (hey.deploy.v1) install/run path

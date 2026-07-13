@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/heypkv/hey/internal/fetch"
-	"github.com/heypkv/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/fetch"
+	"github.com/kitsyai/hey/internal/proc"
 )
 
 // buildProbeArchive builds the svcprobe helper, zips it at the archive root,

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/heypkv/hey/internal/contract"
-	"github.com/heypkv/hey/internal/home"
-	"github.com/heypkv/hey/internal/proc"
-	"github.com/heypkv/hey/internal/state"
+	"github.com/kitsyai/hey/internal/contract"
+	"github.com/kitsyai/hey/internal/home"
+	"github.com/kitsyai/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/state"
 )
 
 func cmdPs(args []string) error {

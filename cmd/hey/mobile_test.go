@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/heypkv/hey/internal/deploy"
-	"github.com/heypkv/hey/internal/fetch"
+	"github.com/kitsyai/hey/internal/deploy"
+	"github.com/kitsyai/hey/internal/fetch"
 )
 
 // mockADB builds the adbprobe helper as "adb" onto a temp dir, prepends that

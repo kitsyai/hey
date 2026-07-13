@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/heypkv/hey/internal/fetch"
-	"github.com/heypkv/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/fetch"
+	"github.com/kitsyai/hey/internal/proc"
 )
 
 // Fetcher downloads the artifact at url, verifies it against sha256, and

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/heypkv/hey/internal/deploy"
-	"github.com/heypkv/hey/internal/home"
+	"github.com/kitsyai/hey/internal/deploy"
+	"github.com/kitsyai/hey/internal/home"
 )
 
 const mobileUsage = `hey mobile — install builds to nearby devices (until a hey mobile client exists)

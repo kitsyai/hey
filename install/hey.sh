@@ -1,5 +1,5 @@
 #!/bin/sh
-# hey installer for Linux/macOS — https://github.com/heypkv/hey
+# hey installer for Linux/macOS — https://github.com/kitsyai/hey
 #
 #   curl -fsSL https://heypkv.ai/hey.sh | sh
 #
@@ -7,7 +7,7 @@
 # else ~/.local/bin), HEY_VERSION (default: latest release).
 set -eu
 
-REPO="heypkv/hey"
+REPO="kitsyai/hey"
 
 os=$(uname -s)
 case "$os" in

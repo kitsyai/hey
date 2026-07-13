@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/heypkv/hey/internal/contract"
-	"github.com/heypkv/hey/internal/proc"
-	"github.com/heypkv/hey/internal/state"
+	"github.com/kitsyai/hey/internal/contract"
+	"github.com/kitsyai/hey/internal/proc"
+	"github.com/kitsyai/hey/internal/state"
 )
 
 func requireIntegration(t *testing.T) string {
