@@ -4,7 +4,7 @@ short_id: 37b23b0cb77b
 title: "hey install/run app bundles: archive/appimage/binary/installer/link +
   --temp/--location"
 type: feature
-status: in_progress
+status: in_review
 created: 2026-07-13
 updated: 2026-07-13
 aliases: []

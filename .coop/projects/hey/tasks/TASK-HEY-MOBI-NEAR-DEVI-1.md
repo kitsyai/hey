@@ -3,7 +3,7 @@ id: TASK-HEY-MOBI-NEAR-DEVI-1
 short_id: 6d762ae14bd3
 title: "hey mobile: nearby devices + apk push (adb) + open (link)"
 type: feature
-status: in_progress
+status: in_review
 created: 2026-07-13
 updated: 2026-07-13
 aliases: []

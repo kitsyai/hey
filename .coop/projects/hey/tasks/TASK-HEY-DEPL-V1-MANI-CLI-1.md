@@ -3,7 +3,7 @@ id: TASK-HEY-DEPL-V1-MANI-CLI-1
 short_id: 0ae8e5fbb583
 title: hey.deploy.v1 manifest client + scope/URL resolution
 type: feature
-status: in_progress
+status: in_review
 created: 2026-07-13
 updated: 2026-07-13
 aliases: []
