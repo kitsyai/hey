@@ -48,8 +48,12 @@ func pgProbe(port int) error {
 }
 
 func TestIntegrationPostgresE2E(t *testing.T) {
-	if os.Getenv("HEY_INTEGRATION") != "1" {
-		t.Skip("set HEY_INTEGRATION=1 to run the postgres integration test")
+	// Gated separately from the light integration suite: this downloads a
+	// ~314 MB real postgres and runs the server, which is too heavy and too
+	// environment-dependent (e.g. the EDB build needs the MSVC runtime) for
+	// per-push CI. Run on demand: HEY_SVC_INTEGRATION=1.
+	if os.Getenv("HEY_SVC_INTEGRATION") != "1" {
+		t.Skip("set HEY_SVC_INTEGRATION=1 to run the heavy postgres integration test")
 	}
 	heyHome := t.TempDir()
 	t.Setenv("HEY_HOME", heyHome)
