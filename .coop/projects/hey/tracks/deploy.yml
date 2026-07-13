@@ -1,0 +1,12 @@
+id: deploy
+short_id: 5b1c2e8cfd8d
+name: deploy
+capacity_profiles:
+  - backend_team
+constraints:
+  max_concurrent_tasks: 6
+  allowed_types:
+    - feature
+    - bug
+    - chore
+    - spike
