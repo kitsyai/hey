@@ -275,16 +275,15 @@ func runDeployRef(ref deploy.Ref, appArgs []string, o deployOpts) error {
 // rejects mobile-only manifests with a pointer to `hey mobile`.
 func selectForInstall(m *deploy.Manifest) (deploy.Artifact, error) {
 	art, err := m.SelectDesktop()
-	if err != nil {
-		// If the only artifacts are mobile/link, say so usefully.
-		if _, lerr := m.SelectLink(""); lerr == nil {
-			if l, _ := m.SelectLink(""); l.Kind == deploy.KindLink {
-				return l, nil
-			}
-		}
-		return deploy.Artifact{}, err
+	if err == nil {
+		return art, nil
 	}
-	return art, nil
+	// No desktop artifact — a link-only manifest (e.g. a store page) is still
+	// runnable by opening it. Otherwise surface the desktop no-match error.
+	if link, lerr := m.SelectLink(""); lerr == nil {
+		return link, nil
+	}
+	return deploy.Artifact{}, err
 }
 
 // launchDeploy runs execPath per the artifact's interface.
