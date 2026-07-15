@@ -135,7 +135,7 @@ func buddyInstall(args []string) error {
 	if ref == "" {
 		return fmt.Errorf("usage: hey buddy install <owner/repo|@scope/id|https-manifest-url> [--cred <name>]")
 	}
-	// An owner/repo ref (e.g. kyive/boss) is a source install: read the repo's
+	// An owner/repo ref (e.g. acme/tool) is a source install: read the repo's
 	// checked-in hey.json and fetch the prebuilt binary for this platform.
 	if isRepoRef(ref) {
 		return buddySourceInstall(ref, cred)

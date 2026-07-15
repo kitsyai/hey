@@ -4,10 +4,10 @@ import "testing"
 
 func TestGitURL(t *testing.T) {
 	cases := map[string]string{
-		"heypkv/heyboss":                  "https://github.com/heypkv/heyboss.git",
-		"heypkv/heyboss.git":              "https://github.com/heypkv/heyboss.git",
-		"https://example.com/x/y.git":     "https://example.com/x/y.git",
-		"git@github.com:heypkv/heyboss.git": "git@github.com:heypkv/heyboss.git",
+		"acme/widget":                    "https://github.com/acme/widget.git",
+		"acme/widget.git":                "https://github.com/acme/widget.git",
+		"https://example.com/x/y.git":    "https://example.com/x/y.git",
+		"git@github.com:acme/widget.git": "git@github.com:acme/widget.git",
 	}
 	for in, want := range cases {
 		if got := gitURL(in); got != want {
@@ -18,10 +18,10 @@ func TestGitURL(t *testing.T) {
 
 func TestRepoDir(t *testing.T) {
 	cases := map[string]string{
-		"heypkv/heyboss":                    "heyboss",
-		"heypkv/heyboss.git":                "heyboss",
-		"https://github.com/heypkv/heyboss": "heyboss",
-		"git@github.com:heypkv/heyboss.git": "heyboss",
+		"acme/widget":                    "widget",
+		"acme/widget.git":                "widget",
+		"https://github.com/acme/widget": "widget",
+		"git@github.com:acme/widget.git": "widget",
 	}
 	for in, want := range cases {
 		if got := repoDir(in); got != want {

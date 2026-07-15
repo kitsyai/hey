@@ -35,6 +35,12 @@ endpoints go live, substitute
 `checksums.txt`, and drop the binary on your PATH. Pin a version with
 `HEY_VERSION=0.1.0`; relocate with `HEY_INSTALL_DIR`.
 
+With a Go toolchain you can also install from source:
+
+```sh
+go install github.com/kitsyai/hey/cmd/hey@latest
+```
+
 ## How it works
 
 - **Resolve** — app names come from a registry (embedded by default, see
@@ -87,3 +93,12 @@ go build -o hey ./cmd/hey
 
 `internal/testapp` is the reference implementation of the app contract used
 by the integration tests.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+hey is the open client for the kitsy.ai ecosystem. It's a deliberately thin
+runtime: it resolves a manifest, verifies bytes, and runs a native binary. It
+carries no product-specific knowledge — that lives in the tools it runs and in
+the modules (keeper, buddy, runner) plugged into it.
