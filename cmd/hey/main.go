@@ -25,6 +25,7 @@ Usage:
   hey ps                             list running UI apps and services
   hey stop <app>                     stop a running UI app
   hey svc <up|ls|stop|start|logs|conn|rm>  manage local services
+  hey registry <start|serve|stop|status|ls|clear>  local package registry (npm)
   hey mobile <devices|push>          nearby-device install (adb)
   hey do <intent> [--param k=v]      run a plan (orchestrate tools for a task)
   hey plan <list|show <intent>>      browse/inspect plans
@@ -94,6 +95,8 @@ func main() {
 		err = cmdRun(args[1:])
 	case "svc":
 		err = cmdSvc(args[1:])
+	case "registry":
+		err = cmdRegistry(args[1:])
 	case "mobile":
 		err = cmdMobile(args[1:])
 	case "open":

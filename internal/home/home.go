@@ -107,3 +107,10 @@ func InstanceDir(name string) (string, error) {
 	}
 	return dir, nil
 }
+
+// PkgRegistryDir returns ~/.hey/registry, creating it if needed — the
+// default store root for `hey registry` (the local package registry: npm
+// today, other formats later, each namespaced under their own subdir e.g.
+// ~/.hey/registry/npm). Distinct from ~/.hey/registry.json, the unrelated
+// app-registry override file used by app resolution (see internal/registry).
+func PkgRegistryDir() (string, error) { return subdir("registry") }

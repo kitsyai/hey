@@ -83,6 +83,49 @@ hey version                        print hey's version
 Flags (before the app name): `--registry <path|https-url>`, `--no-browser`,
 `--timeout <dur>`. Environment: `HEY_HOME`, `HEY_REGISTRY`, `GH_TOKEN`.
 
+## Local package registry
+
+`hey registry` runs a local, loopback-only npm registry so a teammate can
+publish a work-in-progress `@heypkv`/`@kitsy` package and have another app
+install it exactly like it came from the real registry — real tarball, real
+`package.json`, no symlinks. It overlays local publishes on top of the real
+upstream (resolved from `~/.npmrc`): anything not published locally proxies
+straight through, auth included.
+
+```
+hey registry start  [--port 4874] [--store <dir>]   start in the background
+hey registry serve  [--port 4874] [--store <dir>]   run in the foreground
+hey registry stop                                   stop the background server
+hey registry status                                 running?, port, store, published count
+hey registry ls                                     list locally-published package@version
+hey registry clear  [<pkg>[@<version>]]              drop local versions
+```
+
+Team flow:
+
+```
+hey self update; hey registry start
+# in the family repo:
+pnpm publish --registry http://127.0.0.1:4874           # 0.x.y-dev.N, never a real release
+# in the consuming app repo, for the session only:
+#   point the @scope registry at 127.0.0.1:4874 (project .npmrc), then:
+pnpm add @heypkv/whatever
+# ...test, iterate...
+hey registry stop                                        # back to pure GAR/npmjs
+```
+
+This is the "real artifact" loop, distinct from an app repo's `pnpm
+dev:link` (a symlinked fast loop for iterating inside one repo) — reach for
+`dev:link` when you're editing in place, and for `hey registry` when you
+need to prove the actual published tarball installs and works.
+
+Store layout is namespaced per package format (npm today; more may follow):
+`~/.hey/registry/npm/<pkg>/{metadata.json,tarballs/<file>.tgz}` — every
+locally-published package is a plain directory, inspectable without any
+tooling. Upstream resolution reads only `@scope:registry=` and
+`//host/path/:tokenHelper=` lines out of `~/.npmrc` — token/authToken lines
+are never read or logged.
+
 ## Development
 
 ```

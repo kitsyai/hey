@@ -36,6 +36,7 @@ var Reserved = []string{
 	"cache", "version", "help", "svc", "mobile", "open",
 	"keygen", "sign", "verify", "uninstall",
 	"enable", "disable", "remove", "rm", "self", "do", "plan", "keeper", "buddy", "runner",
+	"registry",
 }
 
 // Registry maps app names to their sources, and scopes to manifest-URL
