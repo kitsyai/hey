@@ -37,6 +37,12 @@ var Reserved = []string{
 	"keygen", "sign", "verify", "uninstall",
 	"enable", "disable", "remove", "rm", "self", "do", "plan", "keeper", "buddy", "runner",
 	"registry",
+	// Reserved ahead of the hey services hub (docs/design/services.md §9,
+	// P1): "up"/"down" are hey up's own verbs, "hub" and "config" are its own
+	// subcommands, "services" is the hub's own noun. None of these can ever
+	// become an app, pack, or hub-service name — see internal/namespace for
+	// the unified collision check across all three name namespaces.
+	"up", "down", "hub", "config", "services",
 }
 
 // Registry maps app names to their sources, and scopes to manifest-URL

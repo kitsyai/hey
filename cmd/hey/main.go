@@ -24,7 +24,10 @@ Usage:
   hey self update                    update hey itself
   hey ps                             list running UI apps and services
   hey stop <app>                     stop a running UI app
-  hey svc <up|ls|stop|start|logs|conn|rm>  manage local services
+  hey up <service> [<service2> ...]  bring up a hey service (postgres, vinci, ...)
+  hey down <service>                 stop a service started with 'hey up'
+  hey hub <start|stop|status>        the services discovery hub (127.0.0.1:8525)
+  hey svc <up|ls|stop|start|logs|conn|rm>  manage local services (hey up is the general spelling)
   hey registry <start|serve|stop|status|ls|clear>  local package registry (npm)
   hey mobile <devices|push>          nearby-device install (adb)
   hey do <intent> [--param k=v]      run a plan (orchestrate tools for a task)
@@ -52,9 +55,11 @@ Flags (before the ref):
   --location <path>            install a bundle to a caller-chosen directory
 
 Environment:
-  HEY_HOME      data directory (default ~/.hey)
-  HEY_REGISTRY  registry override
-  GH_TOKEN      GitHub token (raises API rate limits)
+  HEY_HOME       data directory (default ~/.hey)
+  HEY_REGISTRY   registry override
+  HEY_HUB_PORT   discovery hub port (default 8525)
+  HEY_HUB_CONFIG hub config override (path or https URL; default ~/.hey/hub.json)
+  GH_TOKEN       GitHub token (raises API rate limits)
 `
 
 func usage() { fmt.Fprint(os.Stderr, usageText) }
@@ -95,6 +100,12 @@ func main() {
 		err = cmdRun(args[1:])
 	case "svc":
 		err = cmdSvc(args[1:])
+	case "up":
+		err = cmdUp(args[1:])
+	case "down":
+		err = cmdDown(args[1:])
+	case "hub":
+		err = cmdHub(args[1:])
 	case "registry":
 		err = cmdRegistry(args[1:])
 	case "mobile":

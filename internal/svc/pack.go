@@ -25,10 +25,24 @@ var defaultPacksJSON []byte
 // PacksVersion is the pack-manifest format version this build understands.
 const PacksVersion = 0
 
-// DriverArchiveExec is the only driver v0 ships.
+// DriverArchiveExec is v0's generic archive-fetch-and-run driver (postgres).
 const DriverArchiveExec = "archive-exec"
 
+// DriverModelServer is the hey-services-P1 driver (docs/design/services.md
+// §8): identical archive-exec lifecycle for the server binary (llama-server),
+// plus one extra provisioning step — ensuring a separately-pinned, large
+// model-weight artifact is present via a resumable, content-addressed
+// download (see Pack.Model, EnsureModel) — before Start runs.
+const DriverModelServer = "model-server"
+
 const maxPacksBytes = 1 << 20 // 1 MB
+
+// PendingPinSHA256 is the obviously-fake placeholder digest a pack uses to
+// mark an artifact that needs a real upstream pin. It has the right shape
+// (64 hex chars) to pass structural validation — so the rest of packs.json
+// still loads — but Pack.Artifact/EnsureModel refuse to fetch it, with an
+// error naming exactly what needs pinning. See docs/design/services.md §8.
+const PendingPinSHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
 
 // PackSet is a collection of packs, embedded or overridden (same format).
 type PackSet struct {
@@ -37,6 +51,14 @@ type PackSet struct {
 }
 
 // Pack describes one service as data. The driver interprets it.
+//
+// Protocol/Bridge/CORS/MCP are the hey-services-P1 extension
+// (docs/design/services.md §3): a data-only addition to the pack schema so
+// the hub can describe a pack's browser-facing surface without either
+// process manager (internal/svc here, internal/state+internal/contract for
+// contract-native services) growing hub-specific fields. All four are
+// optional; a pack with none of them set simply never appears in the hub's
+// /services catalog.
 type Pack struct {
 	Pack     string             `json:"pack"`
 	Driver   string             `json:"driver"`
@@ -47,6 +69,101 @@ type Pack struct {
 	Ready    Ready              `json:"ready"`
 	Conn     string             `json:"conn,omitempty"`
 	Stop     StopSpec           `json:"stop"`
+
+	Protocol string     `json:"protocol,omitempty"` // "postgres-wire", "http", "openai-http", "mcp"
+	Bridge   *Bridge    `json:"bridge,omitempty"`
+	CORS     CORSPolicy `json:"cors,omitempty"`
+	MCP      bool       `json:"mcp,omitempty"`
+
+	// Model, driver=="model-server" only, single-tier packs: the separately-
+	// pinned, large model weight artifact, fetched resumably into a
+	// content-addressed store (EnsureModel) rather than into the pack's own
+	// bin/ archive. {model} resolves to its on-disk path in Start's command
+	// template. Mutually exclusive with Models/DefaultModel below; a pack
+	// sets exactly one of the two shapes.
+	Model *ModelArtifact `json:"model,omitempty"`
+
+	// Models + DefaultModel, driver=="model-server" only, multi-tier packs
+	// (docs/design/services.md §8's tiny/small/medium size tiers — "hey up
+	// vinci --model <tier>"): named model artifacts sharing one server
+	// binary. DefaultModel names the entry Models used when --model is
+	// omitted (P1: a fixed default per north-star's "small" balanced tier;
+	// RAM-probe auto-selection is a fast-follow, not implemented here).
+	Models       map[string]ModelArtifact `json:"models,omitempty"`
+	DefaultModel string                   `json:"default_model,omitempty"`
+}
+
+// ResolveModel picks the model artifact for tier ("" = the pack's default),
+// covering both single-tier packs (Model) and multi-tier packs (Models +
+// DefaultModel). It returns the resolved tier name alongside the artifact so
+// callers (EnsureModel via UpModel, the hub catalog) can record which tier an
+// instance is actually running.
+func (p Pack) ResolveModel(tier string) (*ModelArtifact, string, error) {
+	if len(p.Models) > 0 {
+		if tier == "" {
+			tier = p.DefaultModel
+		}
+		if tier == "" {
+			return nil, "", fmt.Errorf("pack %q defines model tiers but no default_model", p.Pack)
+		}
+		m, ok := p.Models[tier]
+		if !ok {
+			names := make([]string, 0, len(p.Models))
+			for n := range p.Models {
+				names = append(names, n)
+			}
+			sort.Strings(names)
+			return nil, "", fmt.Errorf("pack %q has no model tier %q — available: %s", p.Pack, tier, strings.Join(names, ", "))
+		}
+		return &m, tier, nil
+	}
+	if p.Model != nil {
+		if tier != "" {
+			return nil, "", fmt.Errorf("pack %q does not define multiple model tiers — omit --model", p.Pack)
+		}
+		return p.Model, "", nil
+	}
+	return nil, "", fmt.Errorf("pack %q has no model artifact configured", p.Pack)
+}
+
+// Bridge describes hey's browser-facing translation of a native protocol —
+// docs/design/services.md §3. nil means Protocol() is already
+// browser-speakable HTTP/JSON and the hub just reverse-proxies it.
+type Bridge struct {
+	Path string `json:"path"` // e.g. "/svc/postgres" — the hub-mounted prefix
+	Kind string `json:"kind"` // "http-query-api", "openai-compatible", "mcp"
+}
+
+// CORSPolicy is a pack's additive origin allow-list on top of the hub
+// default (docs/design/services.md §3/§5).
+type CORSPolicy struct {
+	AddOrigins []string `json:"add_origins,omitempty"`
+}
+
+// ModelArtifact is a model-server pack's separately-downloaded weight file.
+// SHA256 may be PendingPinSHA256 to mark "not pinned yet" — packs.json still
+// loads, but EnsureModel refuses to fetch it (see PendingPinSHA256).
+type ModelArtifact struct {
+	URL      string `json:"url"`
+	SHA256   string `json:"sha256"`
+	Filename string `json:"filename"`
+}
+
+// Pending reports whether a is an unpinned placeholder (obviously-fake hash
+// or URL) rather than a real, fetchable artifact.
+func (a Artifact) Pending() bool { return isPendingPin(a.SHA256, a.URL) }
+
+// Pending reports whether m is an unpinned placeholder model artifact. A nil
+// m (no model configured) is never pending.
+func (m *ModelArtifact) Pending() bool {
+	if m == nil {
+		return false
+	}
+	return isPendingPin(m.SHA256, m.URL)
+}
+
+func isPendingPin(sha256, url string) bool {
+	return sha256 == PendingPinSHA256 || strings.Contains(url, "TODO-PIN-REQUIRED")
 }
 
 // Version holds the per-platform artifacts for one pack version.
@@ -61,10 +178,11 @@ type Artifact struct {
 	BinSubdir string `json:"bin_subdir,omitempty"`
 }
 
-// Ready is a health check: exactly one of TCP or Command.
+// Ready is a health check: exactly one of TCP, Command, or HTTP.
 type Ready struct {
 	TCP            string `json:"tcp,omitempty"`
 	Command        string `json:"command,omitempty"`
+	HTTP           string `json:"http,omitempty"` // GET this URL (templated); 2xx = ready
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 }
 
@@ -131,6 +249,16 @@ func parsePacks(data []byte, from string) (*PackSet, error) {
 	return &ps, nil
 }
 
+// validDrivers are the drivers this hey build's svc package interprets.
+// archive-exec is v0's generic fetch-extract-run pipeline; model-server
+// (hey-services-P1, docs/design/services.md §8) reuses that pipeline for the
+// server binary and adds one step (EnsureModel) for a second, separately
+// pinned artifact.
+var validDrivers = map[string]bool{
+	DriverArchiveExec: true,
+	DriverModelServer: true,
+}
+
 func validatePack(name string, p Pack) error {
 	if strings.ContainsAny(name, `/\@ `) || name == "" {
 		return fmt.Errorf("invalid pack name %q", name)
@@ -138,8 +266,8 @@ func validatePack(name string, p Pack) error {
 	if p.Pack != name {
 		return fmt.Errorf("pack %q: field \"pack\" is %q, must match its key", name, p.Pack)
 	}
-	if p.Driver != DriverArchiveExec {
-		return fmt.Errorf("pack %q: unsupported driver %q (this hey only supports %q)", name, p.Driver, DriverArchiveExec)
+	if !validDrivers[p.Driver] {
+		return fmt.Errorf("pack %q: unsupported driver %q (this hey only supports %q, %q)", name, p.Driver, DriverArchiveExec, DriverModelServer)
 	}
 	if len(p.Versions) == 0 {
 		return fmt.Errorf("pack %q: no versions", name)
@@ -147,8 +275,8 @@ func validatePack(name string, p Pack) error {
 	if p.Start == "" {
 		return fmt.Errorf("pack %q: missing start command", name)
 	}
-	if p.Ready.TCP == "" && p.Ready.Command == "" {
-		return fmt.Errorf("pack %q: ready needs a tcp or command check", name)
+	if p.Ready.TCP == "" && p.Ready.Command == "" && p.Ready.HTTP == "" {
+		return fmt.Errorf("pack %q: ready needs a tcp, command, or http check", name)
 	}
 	for ver, v := range p.Versions {
 		if len(v.Artifacts) == 0 {
@@ -162,6 +290,50 @@ func validatePack(name string, p Pack) error {
 				return fmt.Errorf("pack %q %s/%s: sha256 must be 64 hex chars", name, ver, plat)
 			}
 		}
+	}
+	if p.Driver == DriverModelServer && p.Model == nil && len(p.Models) == 0 {
+		return fmt.Errorf("pack %q: driver %q needs a \"model\" or \"models\" artifact", name, DriverModelServer)
+	}
+	if p.Model != nil && len(p.Models) > 0 {
+		return fmt.Errorf("pack %q: set exactly one of \"model\" or \"models\", not both", name)
+	}
+	if p.Model != nil {
+		if err := validateModelArtifact(name, "", *p.Model); err != nil {
+			return err
+		}
+	}
+	for tier, m := range p.Models {
+		if err := validateModelArtifact(name, tier, m); err != nil {
+			return err
+		}
+	}
+	if len(p.Models) > 0 {
+		if p.DefaultModel == "" {
+			return fmt.Errorf("pack %q: \"models\" needs a \"default_model\"", name)
+		}
+		if _, ok := p.Models[p.DefaultModel]; !ok {
+			return fmt.Errorf("pack %q: default_model %q is not one of its models", name, p.DefaultModel)
+		}
+	}
+	if p.Bridge != nil && p.Bridge.Path == "" {
+		return fmt.Errorf("pack %q: bridge needs a path", name)
+	}
+	return nil
+}
+
+func validateModelArtifact(pack, tier string, m ModelArtifact) error {
+	label := pack
+	if tier != "" {
+		label = fmt.Sprintf("%s model %q", pack, tier)
+	}
+	if !strings.HasPrefix(m.URL, "https://") {
+		return fmt.Errorf("pack %q: model url must be https", label)
+	}
+	if len(m.SHA256) != 64 {
+		return fmt.Errorf("pack %q: model sha256 must be 64 hex chars", label)
+	}
+	if m.Filename == "" {
+		return fmt.Errorf("pack %q: model needs a filename", label)
 	}
 	return nil
 }

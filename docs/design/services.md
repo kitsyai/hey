@@ -678,3 +678,111 @@ same `platform/ai` contract extended in P1.
    "zero extra download" property `ai`/`registry` have). Affects both
    binary-size and update-velocity trade-offs and should be decided before
    the `agent-host` driver is built, not discovered mid-implementation.
+
+## 11. Decisions (P1 build)
+
+Resolutions to §10's open questions, made during the P1 implementation
+(hub + `hey up` + vinci model-server + postgres bridge). Recorded here so
+they're not re-litigated at P2/P3/P4 without cause.
+
+1. **Elevation (§10 Q1) — setup grants only, never at service runtime.**
+   Elevated access is confined to *one-time setup* the P2 named-hosts/CA tier
+   needs (`hey hosts install`'s hosts-file write, `hey ca install`'s
+   trust-store install) — never to running a service. Every `hey up
+   <service>` process, P1 through P4, runs under the invoking user's normal
+   permissions, exactly like every `internal/svc`-managed process does
+   today; no service's pack `start` command may assume or request elevation.
+   This wasn't a live question for P1 (loopback-only, no named hosts), but is
+   binding on P2's design.
+2. **Model tiers (§10 Q2) — progressive, P1 ships the mechanism.** Qwen2.5-
+   3B-Instruct Q4_K_M is the default ("small") tier; a low-RAM ("tiny", ~1.5B)
+   tier and better-than-default ("medium") tiers are selectable per-pack via
+   `hey up vinci --model <tier>` (`Pack.Models`/`DefaultModel`,
+   `internal/svc.ResolveModel`) — implemented and tested (with fake artifacts
+   — see §12). What's deferred: automatic tier selection by probing available
+   RAM. That's a fast-follow, not a P1 gap — `--model` is the escape hatch
+   until it lands. Real per-tier pins (§10 Q2's licensing/sizing validation)
+   are still open; see §12.
+3. **Hub scope (§10 Q3) — per-user by default, confirmed.** The hub binds
+   one instance per OS user via `~/.hey` (`HEY_HOME`), matching
+   `internal/home`'s existing per-user model — unchanged, not reconsidered.
+   A system-wide/shared mode remains a later, explicit opt-in if multi-user
+   machines need it, not something P1 attempts.
+4. **Resource limits (§10 Q4) — policy-driven, not a blind cap; still not
+   built.** The direction is a *policy* (soft warnings informed by actual
+   available RAM/disk/CPU before starting a heavy service like vinci's medium
+   tier) rather than a fixed count-of-services ceiling — but no such policy
+   ships in P1. `hey up vinci` does check free disk space before a model
+   download (skips/warns rather than filling the disk) as a narrow, concrete
+   instance of this principle; a general resource-aware admission policy
+   across all services is P-later work.
+5. **Namespace unification (§10 Q5) — resolved.** `internal/namespace`
+   (`CheckCollisions`, `CheckName`) is the single collision check across
+   `internal/registry.Reserved`, registry app names, and `internal/svc` pack
+   names — the hub's own service names need no fourth check because a hub
+   service's `Name()` is always exactly a pack name (default) or a
+   user-chosen `--name` that collides-checks against the same three-way set
+   (`CheckName`, called from `hey up` before provisioning). `up`, `down`,
+   `hub`, `config`, `services` were added to `Reserved` ahead of this
+   landing, per §9's own instruction.
+6. **Agent process location (§10 Q6) — not decided in P1.** P1 does not
+   build the `agent-host` driver (P4 scope); this question stays open until
+   that work starts, but the direction leans toward the same "fetched
+   artifact" pattern as vinci's model-server driver (§12), consistent with
+   decision #7's architecture directive.
+7. **Architecture directive: hey stays a thin coordinator (new, P1).**
+   Every service-specific behavior — postgres's init/start/stop templates,
+   vinci's server flags and model choice — lives in pack *data*
+   (`packs.json`) or a *fetched artifact* (the EDB archive, the pinned
+   `llama-server` binary, the GGUF weight), never compiled into the hey
+   binary. This mirrors `buddy` (an installations plugin over fetched
+   bundles) and `runner` (a thin app-running facade over fetched binaries):
+   `internal/svc`'s two drivers (`archive-exec`, `model-server`) are
+   generic, reusable machinery with zero postgres- or llama.cpp-specific
+   code; only the hub itself (routing, the security envelope, the postgres
+   wire-protocol bridge) is new *concrete* Go machinery in the binary, and
+   that machinery is service-agnostic by construction — a third pack could
+   reuse either driver with no hub changes.
+
+## 12. P1 build report
+
+What actually shipped, and what's still a pin-only placeholder — see the
+implementation's own commit for the full detail; this is the durable record.
+
+- **Hub.** `internal/hub`: `/healthz`, `/services`, `/services/<name>`,
+  `/svc/<name>/*` (reverse proxy or bridge dispatch by pack kind), the §5
+  security envelope as one middleware (`Envelope`), a pidfile lifecycle
+  (`hey hub start|stop|status`) mirroring `internal/pkgreg`'s registry
+  pattern. `hey up` auto-starts it. The catalog is keyed by *instance* name
+  (not pack name) so a custom `hey up postgres --name pg2` gets its own
+  correctly-routed `/svc/pg2/...` entry — pack name and instance name are
+  two different things throughout the hub, not assumed equal.
+- **`hey up` / `hey down`.** `cmd/hey/up.go`: multi-service (`hey up vinci
+  postgres`), `--name`, `--model <tier>`, first-run model-download progress
+  UX. `hey svc up` keeps working unchanged.
+- **vinci.** `internal/svc`'s new `model-server` driver reuses the
+  `archive-exec` provisioning pipeline for the `llama-server` binary and
+  adds one step, `EnsureModel`, for the separately-pinned GGUF weight:
+  resumable (HTTP Range, `internal/fetch.DownloadResumable`), checksummed,
+  content-addressed under `~/.hey/artifacts/models/<sha256>/<file>` (dedup
+  across packs/instances that reference the same weight). **Binary and
+  model pins are TODO** — `packs.json`'s `vinci` pack ships the obviously-
+  fake `PendingPinSHA256` placeholder for every platform artifact and the
+  default model; `EnsureModel`/`Pack.Artifact` refuse to fetch a pending pin
+  with a loud, specific error rather than downloading something unverified.
+  Real pins were not guessed in, per this build's explicit instruction.
+- **postgres bridge.** `internal/pgwire` (new, zero-dependency, hand-rolled
+  postgres wire protocol v3 + SCRAM-SHA-256, including a from-scratch
+  PBKDF2-HMAC-SHA256 since `golang.org/x/crypto` isn't a hey dependency) +
+  `internal/hub/bridge_postgres.go`. The wire contract is the app-side
+  client's (`@heypkv/hub-web`'s `heyDatabase.ts`), not services.md's
+  original sketch: `{rows: [{col: val}]}`/`{rowsAffected, lastInsertId?}`
+  response shapes, `X-Hey-Session`-pinned connections so multi-request
+  transactions really commit/rollback, per-`{namespace,name}` postgres
+  schema isolation, and `{"$bytes": base64}` for bytea/Uint8Array. Verified
+  against a real postgres instance (SCRAM auth, transactions, bytea
+  round-trip, namespace isolation) — see the commit's test suite and report.
+  **Known gap:** the bridge's statement blocklist is a prefix check, not a
+  real SQL parser, and the pack's generated credentials are postgres's
+  bootstrap *superuser* (initdb's `-U` always is) — a properly scoped,
+  non-superuser bridge role is flagged, not built, in P1.

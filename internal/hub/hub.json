@@ -1,0 +1,15 @@
+{
+  "hey_hub": 0,
+  "port": 8525,
+  "cors": {
+    "allow_origins": [
+      "https://heypkv.ai",
+      "https://*.heypkv.ai",
+      "https://kitsy.ai",
+      "https://*.kitsy.ai",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ]
+  },
+  "services": {}
+}

@@ -9,8 +9,8 @@ import (
 
 // vars holds the template substitutions for a command (see docs, "Templating").
 type vars struct {
-	bin, data, user, password, pwfile string
-	port                              int
+	bin, data, user, password, pwfile, model string
+	port                                     int
 }
 
 func (v vars) replacer() *strings.Replacer {
@@ -21,6 +21,7 @@ func (v vars) replacer() *strings.Replacer {
 		"{user}", v.user,
 		"{password}", v.password,
 		"{pwfile}", v.pwfile,
+		"{model}", v.model,
 	)
 }
 

@@ -108,6 +108,33 @@ func InstanceDir(name string) (string, error) {
 	return dir, nil
 }
 
+// ArtifactsDir returns ~/.hey/artifacts, creating it if needed — the
+// content-addressed store for large, dedup-worthy downloads (model weights
+// today; docs/design/services.md §8), distinct from ~/.hey/svc/<inst>/bin,
+// which is namespaced per-instance and never shared.
+func ArtifactsDir() (string, error) { return subdir("artifacts") }
+
+// ModelsDir returns ~/.hey/artifacts/models, creating it if needed. Model
+// files live at <ModelsDir>/<sha256[:2]>/<sha256>/<filename> — the same path
+// shape internal/svc.EnsureModel derives from a raw svcDir, so both agree on
+// one location regardless of which one resolves it first.
+func ModelsDir() (string, error) {
+	artifacts, err := ArtifactsDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(artifacts, "models")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
+// HubDir returns ~/.hey/hub, creating it if needed — the discovery hub's
+// pidfile lives here (internal/hub), mirroring internal/pkgreg's
+// registry.pid pattern.
+func HubDir() (string, error) { return subdir("hub") }
+
 // PkgRegistryDir returns ~/.hey/registry, creating it if needed — the
 // default store root for `hey registry` (the local package registry: npm
 // today, other formats later, each namespaced under their own subdir e.g.

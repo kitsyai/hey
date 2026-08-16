@@ -3,6 +3,7 @@ package svc
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,18 +37,100 @@ func HTTPSFetcher(url, sha256, destDir string) error {
 
 const initMarker = ".hey-initialized"
 
+// ModelFetcher ensures the model-server artifact described by url/sha256 is
+// present at destPath, downloading it (resumably) if not. progress, if
+// non-nil, reports bytes-so-far/total periodically — first-run UX for a
+// multi-GB model download (docs/design/services.md §8). The default
+// (HTTPSModelFetcher) verifies the digest and content-addresses the result;
+// tests inject a local one to drive the lifecycle with no network.
+type ModelFetcher func(url, sha256, destPath string, progress func(done, total int64)) error
+
+// HTTPSModelFetcher is the production model fetcher: a resumable, checksummed
+// HTTPS download straight to destPath (the content-addressed final path —
+// see EnsureModel), via internal/fetch.DownloadResumable.
+func HTTPSModelFetcher(url, sha256, destPath string, progress func(done, total int64)) error {
+	return fetch.DownloadResumable(url, destPath, sha256, progress)
+}
+
+// modelsDirFor returns the content-addressed model store for a given svcDir:
+// <parent of svcDir>/artifacts/models, i.e. ~/.hey/artifacts/models when
+// svcDir is the real ~/.hey/svc (see internal/home.ModelsDir, which resolves
+// the identical path from HEY_HOME). Deriving it from svcDir rather than
+// importing internal/home keeps this package's tests free to use any svcDir,
+// including a bare t.TempDir(), with no HEY_HOME wiring.
+func modelsDirFor(svcDir string) string {
+	return filepath.Join(filepath.Dir(svcDir), "artifacts", "models")
+}
+
+// EnsureModel makes pack.Model present on disk, downloading it into the
+// content-addressed model store under modelsDir only if it isn't already
+// there (dedup: the same weight referenced by two packs/instances is fetched
+// once) — idempotent, so a second `hey up vinci` after a completed download
+// is a fast no-op, matching the P1 UX requirement. Refuses, with a message
+// naming exactly what to fix, if the pack's pin is still the obviously-fake
+// PendingPinSHA256 placeholder.
+func EnsureModel(modelsDir string, model *ModelArtifact, fetcher ModelFetcher, progress func(done, total int64)) (string, error) {
+	if model == nil {
+		return "", fmt.Errorf("pack has no model artifact configured")
+	}
+	if model.Pending() {
+		return "", fmt.Errorf(
+			"model artifact not pinned yet: packs.json still has the placeholder "+
+				"url/sha256 for %q — replace them with a verified upstream URL and its "+
+				"real sha256 (see docs/design/services.md §8); refusing to download an "+
+				"unverified placeholder", model.Filename)
+	}
+	if fetcher == nil {
+		fetcher = HTTPSModelFetcher
+	}
+	dest := filepath.Join(modelsDir, model.SHA256[:2], model.SHA256, model.Filename)
+	if _, err := os.Stat(dest); err == nil {
+		return dest, nil // already have it, byte-identical by content address
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return "", err
+	}
+	if err := fetcher(model.URL, model.SHA256, dest, progress); err != nil {
+		return "", fmt.Errorf("ensure model %s: %w", model.Filename, err)
+	}
+	return dest, nil
+}
+
 // Up provisions (if needed), starts, and health-checks an instance. It is
 // idempotent: a healthy running instance is reused; a stopped one is started;
 // an absent one is provisioned from scratch. fetcher may be nil (defaults to
 // HTTPSFetcher).
 func Up(svcDir, name string, pack Pack, version string, fetcher Fetcher) (*Instance, error) {
+	return up(svcDir, name, pack, version, "", fetcher, nil, nil)
+}
+
+// UpModel is Up for model-server packs: it additionally resolves and ensures
+// a model artifact (see Pack.ResolveModel, EnsureModel) before Start runs.
+// tier selects a Pack.Models entry ("" = the pack's DefaultModel, or its
+// single Pack.Model); an existing instance provisioned under a *different*
+// tier is refused rather than silently ignoring the flag — switching tiers
+// needs `hey down` first, since one instance can only run one model at a
+// time. modelFetcher/progress may be nil — tests supply a local modelFetcher
+// to drive the full lifecycle with no multi-GB network download; production
+// leaves it nil for HTTPSModelFetcher.
+func UpModel(svcDir, name string, pack Pack, version, tier string, fetcher Fetcher, modelFetcher ModelFetcher, progress func(done, total int64)) (*Instance, error) {
+	return up(svcDir, name, pack, version, tier, fetcher, modelFetcher, progress)
+}
+
+func up(svcDir, name string, pack Pack, version, tier string, fetcher Fetcher, modelFetcher ModelFetcher, progress func(done, total int64)) (*Instance, error) {
 	if fetcher == nil {
 		fetcher = HTTPSFetcher
 	}
 	dir := filepath.Join(svcDir, name)
+	hasModel := pack.Model != nil || len(pack.Models) > 0
 
 	// Reuse or resume an existing instance.
 	if inst, err := LoadInstance(dir); err == nil {
+		if hasModel && tier != "" && inst.ModelTier != "" && tier != inst.ModelTier {
+			return nil, fmt.Errorf(
+				"%s is already provisioned with model tier %q; `hey down %s` first to switch to %q",
+				name, inst.ModelTier, name, tier)
+		}
 		if inst.PID != 0 && proc.Alive(inst.PID) {
 			return inst, nil // already running
 		}
@@ -63,6 +146,22 @@ func Up(svcDir, name string, pack Pack, version string, fetcher Fetcher) (*Insta
 	art, plat, err := pack.Artifact(version)
 	if err != nil {
 		return nil, err
+	}
+	if art.Pending() {
+		return nil, fmt.Errorf(
+			"pack %q %s/%s artifact not pinned yet: packs.json still has the "+
+				"placeholder url/sha256 — replace them with a verified upstream "+
+				"release URL and its real sha256 (see docs/design/services.md §8); "+
+				"refusing to download an unverified placeholder", pack.Pack, version, plat)
+	}
+
+	var model *ModelArtifact
+	var resolvedTier string
+	if hasModel {
+		model, resolvedTier, err = pack.ResolveModel(tier)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	inst := &Instance{
@@ -94,6 +193,17 @@ func Up(svcDir, name string, pack Pack, version string, fetcher Fetcher) (*Insta
 
 	if err := provision(inst, pack, art, fetcher); err != nil {
 		return nil, err
+	}
+	if model != nil {
+		modelPath, err := EnsureModel(modelsDirFor(svcDir), model, modelFetcher, progress)
+		if err != nil {
+			return nil, err
+		}
+		inst.ModelPath = modelPath
+		inst.ModelTier = resolvedTier
+		if err := inst.Save(); err != nil {
+			return nil, err
+		}
 	}
 	if err := runInit(inst, pack); err != nil {
 		return nil, err
@@ -211,6 +321,8 @@ func WaitReady(inst *Instance, pack Pack) error {
 	return fmt.Errorf("%s did not become ready within %s\n%s", inst.Name, timeout, logTail(inst))
 }
 
+var readyHTTPClient = &http.Client{Timeout: 2 * time.Second}
+
 func readyOnce(inst *Instance, pack Pack, rep *strings.Replacer) bool {
 	if pack.Ready.TCP != "" {
 		addr := rep.Replace(pack.Ready.TCP)
@@ -220,6 +332,15 @@ func readyOnce(inst *Instance, pack Pack, rep *strings.Replacer) bool {
 		}
 		conn.Close()
 		return true
+	}
+	if pack.Ready.HTTP != "" {
+		url := rep.Replace(pack.Ready.HTTP)
+		resp, err := readyHTTPClient.Get(url)
+		if err != nil {
+			return false
+		}
+		resp.Body.Close()
+		return resp.StatusCode >= 200 && resp.StatusCode < 300
 	}
 	argv, err := expand(pack.Ready.Command, inst.vars(""))
 	if err != nil {

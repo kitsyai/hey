@@ -77,6 +77,9 @@ hey ps                             list running UI apps
 hey stop <app>                     stop a running UI app
 hey which <app>                    print path of the installed binary
 hey cache clean [<app>]            remove cached binaries
+hey up <service> [<service2> ...]  bring up a local service (postgres, vinci, ...)
+hey down <service>                 stop it
+hey hub <start|stop|status>        the local services discovery hub
 hey version                        print hey's version
 ```
 
@@ -125,6 +128,70 @@ locally-published package is a plain directory, inspectable without any
 tooling. Upstream resolution reads only `@scope:registry=` and
 `//host/path/:tokenHelper=` lines out of `~/.npmrc` — token/authToken lines
 are never read or logged.
+
+## hey up — local services
+
+`hey up` is the two-command offline story: install `hey`, then `hey up
+<service>` — a local postgres, an edge-AI model server ("vinci") — and every
+heypkv.ai/kitsy.ai surface (or your own app) talks to it instead of a cloud
+server. No Docker, no manual port bookkeeping. Full design:
+[docs/design/services.md](docs/design/services.md).
+
+```
+hey up postgres              # provision + start postgres, register with the hub
+hey up vinci                 # provision + start a local model server (default tier)
+hey up vinci --model tiny    # a smaller model tier for low-RAM machines
+hey up vinci postgres        # bring up more than one at once
+hey down postgres            # stop it (alias: hey svc stop postgres)
+hey hub status                # is the hub up, what's registered
+```
+
+The first `hey up` call also starts **the discovery hub** in the background
+(`hey hub start`/`stop`/`status` manage it directly), a loopback-only server
+on `127.0.0.1:8525` (`HEY_HUB_PORT` to override) that is the single front
+door for every service:
+
+```
+GET  /healthz                        hub liveness
+GET  /services                       what's up: name, protocol, port, health, urls
+GET  /services/<name>                one service's record (404 if never provisioned)
+ANY  /svc/<name>/...                 reverse-proxied to the service (vinci's OpenAI-
+                                      compatible /v1/chat/completions etc.)
+POST /svc/postgres/query             parameterized SELECT/read -> {"rows": [...]}
+POST /svc/postgres/exec              parameterized write/DDL/txn -> {"rowsAffected", ...}
+```
+
+A browser tab can reach any of this directly — `/services` is how
+`@heypkv/hub-web`'s `createHeyHubDatabaseProvider()` and `platform-web`'s
+`hey-local` AI lane discover a running hub — behind one security envelope
+applied uniformly (docs/design/services.md §5): an origin allow-list
+(`heypkv.ai`/`kitsy.ai` + subdomains by default, additive per-service via
+`hey up <service> --cors <origin>`), a required `X-Hey-Client` header that
+forces a CORS preflight on every real request, Private-Network-Access
+preflight support, Host-header validation, and loopback-only binding. The
+desktop app, with OS-level access and no CORS to satisfy, can skip straight
+to the raw instance port `/services` reports.
+
+**postgres** is the proven exemplar: pinned EDB binaries, `scram-sha-256`
+credentials generated at first `up` (never defaulted), a stable port in
+`5432`-`5600`. Since a browser can't open a raw postgres-wire socket, the hub
+speaks it for you — `/svc/postgres/query`/`/exec` is a real postgres-wire
+client (`internal/pgwire`, hand-rolled to keep `hey` at zero third-party Go
+dependencies) with per-`{namespace,name}` schema isolation and one pinned
+connection per `X-Hey-Session` so a client's `BEGIN`/`COMMIT`/`ROLLBACK`
+compose into a real transaction. It is a *bridge*, not a general SQL
+gateway: role/permission/superuser and filesystem-affecting statements are
+refused regardless of endpoint.
+
+**vinci** is heypkv's local model-serving brand (Qwen/Phi are the models
+underneath, not the product name) — a pinned `llama-server` binary plus a
+resumable, checksummed, content-addressed model download
+(`~/.hey/artifacts/models/`, deduplicated by digest), exposed
+OpenAI-compatible at `/svc/vinci/v1/...`. **The exact upstream binary/model
+pins are not yet set** — `internal/svc/packs.json`'s `vinci` pack ships with
+placeholder URLs/hashes and `hey up vinci` refuses to run them with a loud,
+specific error rather than silently downloading something unverified; see
+the pack's `TODO-PIN-REQUIRED` markers for exactly what needs pinning.
 
 ## Development
 

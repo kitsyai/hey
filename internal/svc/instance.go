@@ -34,6 +34,18 @@ type Instance struct {
 	Created   time.Time `json:"created"`
 	Started   time.Time `json:"started,omitempty"`
 
+	// ModelPath is the on-disk path of a model-server pack's ensured model
+	// artifact (see EnsureModel), resolved into {model} for Start's command
+	// template. Empty for every other driver.
+	ModelPath string `json:"model_path,omitempty"`
+
+	// ModelTier is the resolved Pack.Models key this instance is running
+	// (empty for single-tier packs, or every other driver). Recorded so a
+	// later `hey up vinci --model <different-tier>` against the same
+	// instance name can be refused with a clear message instead of silently
+	// ignoring the flag (see UpModel).
+	ModelTier string `json:"model_tier,omitempty"`
+
 	dir string // instance directory; not serialized
 }
 
@@ -60,6 +72,7 @@ func (i *Instance) vars(pwfile string) vars {
 	return vars{
 		bin: i.ExeDir(), data: i.DataDir(), port: i.Port,
 		user: i.User, password: i.Password, pwfile: pwfile,
+		model: i.ModelPath,
 	}
 }
 

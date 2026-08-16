@@ -17,6 +17,8 @@ func main() {
 	args := os.Args[1:]
 	port := ""
 	initFile := ""
+	modelPath := ""
+	modelMarker := ""
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--port":
@@ -30,6 +32,24 @@ func main() {
 				initFile = args[i+1]
 				i++
 			}
+		case "--model":
+			// model-server driver tests: proves {model} really reached the
+			// start command's argv, substituted, not just recorded in svc.json.
+			if i+1 < len(args) {
+				modelPath = args[i+1]
+				i++
+			}
+		case "--model-marker":
+			if i+1 < len(args) {
+				modelMarker = args[i+1]
+				i++
+			}
+		}
+	}
+	if modelMarker != "" {
+		if err := os.WriteFile(modelMarker, []byte(modelPath), 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, "model-marker:", err)
+			os.Exit(1)
 		}
 	}
 

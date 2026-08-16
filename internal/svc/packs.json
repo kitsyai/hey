@@ -27,7 +27,45 @@
       "start": "{bin}/postgres -D {data} -p {port} -c listen_addresses=127.0.0.1",
       "ready": { "command": "{bin}/pg_isready -h 127.0.0.1 -p {port} -U {user}", "timeout_seconds": 60 },
       "conn": "postgresql://{user}:{password}@127.0.0.1:{port}/postgres",
-      "stop": { "command": "{bin}/pg_ctl stop -D {data} -m fast", "signal": "term", "grace_seconds": 20 }
+      "stop": { "command": "{bin}/pg_ctl stop -D {data} -m fast", "signal": "term", "grace_seconds": 20 },
+      "protocol": "postgres-wire",
+      "bridge": { "path": "/svc/postgres", "kind": "http-query-api" }
+    },
+    "vinci": {
+      "pack": "vinci",
+      "driver": "model-server",
+      "kind": "service",
+      "versions": {
+        "b1-TODO-PIN": {
+          "artifacts": {
+            "windows_amd64": {
+              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-win-x64.zip",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "darwin_amd64": {
+              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-macos-x64.zip",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "darwin_arm64": {
+              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-macos-arm64.zip",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "linux_amd64": {
+              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-linux-x64.zip",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          }
+        }
+      },
+      "model": {
+        "url": "https://TODO-PIN-REQUIRED.invalid/qwen2.5-3b-instruct-q4_k_m.gguf",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "filename": "qwen2.5-3b-instruct-q4_k_m.gguf"
+      },
+      "start": "{bin}/llama-server --model {model} --port {port} --host 127.0.0.1 -c 4096 -np 1",
+      "ready": { "http": "http://127.0.0.1:{port}/health", "timeout_seconds": 120 },
+      "stop": { "signal": "term", "grace_seconds": 10 },
+      "protocol": "openai-http"
     }
   }
 }
