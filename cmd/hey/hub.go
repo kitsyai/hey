@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/kitsyai/hey/internal/home"
@@ -113,10 +111,27 @@ func hubStart(args []string) error {
 // startHubDetached spawns `hey hub __serve-detached` and waits for it to
 // come up. Split out from hubStart so `hey up` can call it directly without
 // re-parsing args.
+//
+// Two guard layers protect this re-exec of the hey binary (both in
+// proc.GuardReexec): the test-binary shape check, born of a real runaway
+// recursive spawn under `go test` (a test binary exec'd with "hub
+// __serve-detached" just re-runs its whole suite — see cmd/hey/hub_test.go);
+// and the HEY_DAEMON_CHILD env marker, stamped on every background child
+// hey spawns, so a background child that somehow reaches this path again is
+// stopped at depth one instead of forking forever. Single-instance
+// enforcement: a live pidfile or an already-bound port refuses a second
+// spawn; a child that never comes up is killed rather than orphaned.
 func startHubDetached() error {
 	_, _, port, err := hubHandler()
 	if err != nil {
 		return err
+	}
+	hubDir, err := home.HubDir()
+	if err != nil {
+		return err
+	}
+	if info, ok := hub.ReadPidFile(hubDir); ok && proc.Alive(info.PID) {
+		return fmt.Errorf("start: a hey hub is already recorded as running (pid %d, port %d) — `hey hub stop` first", info.PID, info.Port)
 	}
 	if hub.ServerUp(port) {
 		return fmt.Errorf("start: port %d is already in use by another process (not a hey hub)", port)
@@ -125,22 +140,12 @@ func startHubDetached() error {
 	if err != nil {
 		return err
 	}
-	// Guard against a real landmine hit while building this feature: inside a
-	// `go test`-compiled binary, os.Executable() resolves to the *test*
-	// binary (a go-build tmp path, or a name ending in "_test"/".test"), not
-	// a real `hey`. Exec'ing it with "hub __serve-detached" doesn't run
-	// cmd/hey's dispatch at all — Go's flag package silently ignores unknown
-	// positional args, so the child just runs the *entire test suite again*,
-	// which (if anything in it also reaches this code path) forks again, and
-	// again. Refusing here — once, at the source — is cheap insurance against
-	// that class of runaway recursive spawn for every test in this binary,
-	// not just the ones that happen to be careful about it today.
-	if looksLikeTestBinary(exe) {
-		return fmt.Errorf("start: refusing to spawn a detached hub from what looks like a test binary (%s) — "+
-			"tests must pre-start the hub in-process instead of exercising this path", exe)
+	if err := proc.GuardReexec(exe, "hub"); err != nil {
+		return fmt.Errorf("start: %w", err)
 	}
 	cmd := exec.Command(exe, "hub", "__serve-detached")
 	proc.Detach(cmd)
+	proc.MarkDaemonChild(cmd, "hub")
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = nil, nil, nil
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start: %w", err)
@@ -149,25 +154,21 @@ func startHubDetached() error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	if !hub.ServerUp(port) {
-		return fmt.Errorf("start: hub did not come up on port %d", port)
+		// Don't leave a half-started child behind with nothing tracking it.
+		_ = proc.KillTree(cmd.Process.Pid)
+		return fmt.Errorf("start: hub did not come up on port %d (spawned pid %d killed)", port, cmd.Process.Pid)
 	}
 	fmt.Printf("hey hub started at http://127.0.0.1:%d/ (pid %d) — stop with: hey hub stop\n", port, cmd.Process.Pid)
 	return nil
 }
 
-// looksLikeTestBinary heuristically detects a `go test`-compiled executable
-// by its path/name shape: `go test` builds into a `go-buildNNNN` temp
-// directory, and/or names the binary `<pkg>.test`/`<pkg>.test.exe`. Neither
-// signal is foolproof (a renamed real binary could false-positive; unlikely
-// in practice), but the cost of a false positive is a clear error telling a
-// test to fix itself, versus the cost of a false negative being exactly the
-// runaway recursive-spawn this guard exists to prevent.
+// looksLikeTestBinary reports whether exe has the path/name shape of a
+// `go test`-compiled binary. Kept as a thin alias — the shared implementation
+// (with the full rationale) lives in internal/proc, next to the rest of the
+// spawn-loop guard machinery, so `hey registry start` and any future detached
+// spawn use the identical check.
 func looksLikeTestBinary(exe string) bool {
-	base := filepath.Base(exe)
-	if strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".test.exe") {
-		return true
-	}
-	return strings.Contains(exe, "go-build")
+	return proc.LooksLikeTestBinary(exe)
 }
 
 // EnsureHubRunning reports whether the hub is already reachable on port —

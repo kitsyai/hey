@@ -114,7 +114,31 @@ func parseConfig(data []byte, from string) (*Config, error) {
 	if len(c.CORS.AllowOrigins) == 0 {
 		return nil, fmt.Errorf("hub config (%s): cors.allow_origins must not be empty", from)
 	}
+	c.CORS.AllowOrigins = append(c.CORS.AllowOrigins, devOrigins()...)
 	return &c, nil
+}
+
+// DevOriginsEnv is a comma-separated list of extra allowed origins appended
+// to every loaded hub config — the knob for local dev frontends on ports the
+// embedded default doesn't know about (e.g. HEY_HUB_DEV_ORIGINS=
+// "http://localhost:4603,http://127.0.0.1:4603"). The loopback port-wildcard
+// forms "http://localhost:*" and "http://127.0.0.1:*" are also accepted here
+// (and in hub.json) to allow every localhost port during development — see
+// matchOrigin.
+const DevOriginsEnv = "HEY_HUB_DEV_ORIGINS"
+
+func devOrigins() []string {
+	raw := os.Getenv(DevOriginsEnv)
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, o := range strings.Split(raw, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			out = append(out, o)
+		}
+	}
+	return out
 }
 
 // ResolvePort returns the port the hub should actually bind: HEY_HUB_PORT

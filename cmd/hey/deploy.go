@@ -381,6 +381,9 @@ func launchDeploy(m *deploy.Manifest, art deploy.Artifact, execPath string, appA
 		return err
 	}
 	proc.Detach(cmd)
+	// Spawn-loop insurance: see proc.MarkDaemonChild — a launched app that
+	// shells back into hey can never make hey re-exec detached children.
+	proc.MarkDaemonChild(cmd, "deploy:"+m.ID)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("launch %s: %w", m.ID, err)
 	}

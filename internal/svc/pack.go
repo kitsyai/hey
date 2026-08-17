@@ -147,6 +147,11 @@ type ModelArtifact struct {
 	URL      string `json:"url"`
 	SHA256   string `json:"sha256"`
 	Filename string `json:"filename"`
+
+	// MinRAMMB, optional, is the model's explicit physical-RAM requirement in
+	// MB for the pre-launch RAM check (see preflightModelRAM). When 0, the
+	// model file's on-disk size is used as the estimate instead.
+	MinRAMMB int `json:"min_ram_mb,omitempty"`
 }
 
 // Pending reports whether a is an unpinned placeholder (obviously-fake hash

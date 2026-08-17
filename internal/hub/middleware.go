@@ -117,7 +117,10 @@ func allowedOrigins(cfg *Config, packs *svc.PackSet, path string) []string {
 // originAllowed reports whether origin matches any entry in list, honoring
 // the "https://*.domain" wildcard-subdomain form (an apex like
 // "https://heypkv.ai" is a separate, explicit entry — the wildcard never
-// matches the apex itself, only a real subdomain).
+// matches the apex itself, only a real subdomain) and the loopback dev
+// port-wildcards "http://localhost:*" / "http://127.0.0.1:*" (any port on
+// that loopback host — dev-only convenience; no non-loopback host gets a
+// port wildcard).
 func originAllowed(origin string, list []string) bool {
 	for _, pattern := range list {
 		if matchOrigin(origin, pattern) {
@@ -129,6 +132,23 @@ func originAllowed(origin string, list []string) bool {
 
 func matchOrigin(origin, pattern string) bool {
 	if pattern == origin {
+		return true
+	}
+	if allHost, ok := strings.CutSuffix(pattern, ":*"); ok {
+		// Port wildcard: loopback hosts only, so a config typo can never
+		// wildcard a real internet origin.
+		if allHost != "http://localhost" && allHost != "http://127.0.0.1" {
+			return false
+		}
+		rest, ok := strings.CutPrefix(origin, allHost+":")
+		if !ok || rest == "" {
+			return false
+		}
+		for _, c := range rest {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
 		return true
 	}
 	const wildcard = "https://*."
