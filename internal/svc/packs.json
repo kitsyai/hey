@@ -25,46 +25,62 @@
         "{bin}/initdb -D {data} -U {user} --pwfile {pwfile} -E UTF8 -A scram-sha-256"
       ],
       "start": "{bin}/postgres -D {data} -p {port} -c listen_addresses=127.0.0.1",
-      "ready": { "command": "{bin}/pg_isready -h 127.0.0.1 -p {port} -U {user}", "timeout_seconds": 60 },
+      "ready": {
+        "command": "{bin}/pg_isready -h 127.0.0.1 -p {port} -U {user}",
+        "timeout_seconds": 60
+      },
       "conn": "postgresql://{user}:{password}@127.0.0.1:{port}/postgres",
-      "stop": { "command": "{bin}/pg_ctl stop -D {data} -m fast", "signal": "term", "grace_seconds": 20 },
+      "stop": {
+        "command": "{bin}/pg_ctl stop -D {data} -m fast",
+        "signal": "term",
+        "grace_seconds": 20
+      },
       "protocol": "postgres-wire",
-      "bridge": { "path": "/svc/postgres", "kind": "http-query-api" }
+      "bridge": {
+        "path": "/svc/postgres",
+        "kind": "http-query-api"
+      }
     },
     "vinci": {
       "pack": "vinci",
       "driver": "model-server",
       "kind": "service",
       "versions": {
-        "b1-TODO-PIN": {
+        "b10453": {
           "artifacts": {
             "windows_amd64": {
-              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-win-x64.zip",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10453/llama-b10453-bin-win-cpu-x64.zip",
+              "sha256": "70c07211d0027305f0be09cd755d79641ebb0bb646590ff3d498c66b22df29b0"
             },
             "darwin_amd64": {
-              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-macos-x64.zip",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10453/llama-b10453-bin-macos-x64.tar.gz",
+              "sha256": "ac13f6f6c90c193765921bf52dd5ecf2a9d506ee9c3eadd2d6fd49ca7a5de25d"
             },
             "darwin_arm64": {
-              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-macos-arm64.zip",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10453/llama-b10453-bin-macos-arm64.tar.gz",
+              "sha256": "f1531b1c520f8b473d83352c5eec2f4f43bd0a54f9ca1366a6f202211cfbc098"
             },
             "linux_amd64": {
-              "url": "https://TODO-PIN-REQUIRED.invalid/llama.cpp/llama-server-linux-x64.zip",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10453/llama-b10453-bin-ubuntu-x64.tar.gz",
+              "sha256": "550eb155a09c3051c7add5becf6d0badc3a4c33416807985963036b27b859fb4"
             }
           }
         }
       },
       "model": {
-        "url": "https://TODO-PIN-REQUIRED.invalid/qwen2.5-3b-instruct-q4_k_m.gguf",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
+        "sha256": "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d",
         "filename": "qwen2.5-3b-instruct-q4_k_m.gguf"
       },
       "start": "{bin}/llama-server --model {model} --port {port} --host 127.0.0.1 -c 4096 -np 1",
-      "ready": { "http": "http://127.0.0.1:{port}/health", "timeout_seconds": 120 },
-      "stop": { "signal": "term", "grace_seconds": 10 },
+      "ready": {
+        "http": "http://127.0.0.1:{port}/health",
+        "timeout_seconds": 120
+      },
+      "stop": {
+        "signal": "term",
+        "grace_seconds": 10
+      },
       "protocol": "openai-http"
     }
   }
