@@ -184,6 +184,10 @@ func runUI(name, version, binPath string, appArgs []string, o runOpts) error {
 	cmd.Stderr = logFile
 	cmd.Env = append(os.Environ(), "HEY=1", fmt.Sprintf("HEY_CONTRACT=%d", contract.Version))
 	proc.Detach(cmd)
+	// Spawn-loop insurance: mark the detached child so that if the launched
+	// app ever shells back into hey, hey's own detached-spawn paths refuse to
+	// re-exec (proc.GuardReexec) instead of recursing.
+	proc.MarkDaemonChild(cmd, "run:"+name)
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
 		return fmt.Errorf("start %s: %w", name, err)

@@ -173,9 +173,17 @@ func registryStart(args []string) error {
 		return err
 	}
 
-	if info, ok := pkgreg.ReadPidFile(store); ok && pkgreg.ServerUp(info.Port) {
-		fmt.Printf("hey registry already running at http://127.0.0.1:%d/ (pid %d, store %s)\n", info.Port, info.PID, info.Store)
-		return nil
+	if info, ok := pkgreg.ReadPidFile(store); ok {
+		if pkgreg.ServerUp(info.Port) {
+			fmt.Printf("hey registry already running at http://127.0.0.1:%d/ (pid %d, store %s)\n", info.Port, info.PID, info.Store)
+			return nil
+		}
+		// Single-instance enforcement even when the TCP probe fails (e.g. the
+		// server is still binding): a live recorded PID means one registry
+		// already exists — never spawn a second one on top of it.
+		if proc.Alive(info.PID) {
+			return fmt.Errorf("start: a hey registry is already recorded as running (pid %d, port %d) — `hey registry stop` first", info.PID, info.Port)
+		}
 	}
 	if pkgreg.ServerUp(port) {
 		return fmt.Errorf("start: port %d is already in use by another process", port)
@@ -185,9 +193,18 @@ func registryStart(args []string) error {
 	if err != nil {
 		return err
 	}
+	// Spawn-loop guard for this re-exec of the hey binary — the exact latent
+	// risk `hey hub start` already hit for real (see cmd/hey/hub_test.go): a
+	// test binary, or a hey background child, reaching this path would fork
+	// recursively. proc.GuardReexec refuses both (test-binary shape check +
+	// the HEY_DAEMON_CHILD marker every background child carries).
+	if err := proc.GuardReexec(exe, "registry"); err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
 	childArgs := []string{"registry", "__serve-detached", "--port", strconv.Itoa(port), "--store", store}
 	cmd := exec.Command(exe, childArgs...)
 	proc.Detach(cmd)
+	proc.MarkDaemonChild(cmd, "registry")
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = nil, nil, nil
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start: %w", err)
@@ -196,7 +213,9 @@ func registryStart(args []string) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	if !pkgreg.ServerUp(port) {
-		return fmt.Errorf("start: server did not come up on port %d", port)
+		// Don't leave a half-started child behind with nothing tracking it.
+		_ = proc.KillTree(cmd.Process.Pid)
+		return fmt.Errorf("start: server did not come up on port %d (spawned pid %d killed)", port, cmd.Process.Pid)
 	}
 	fmt.Printf("hey registry started at http://127.0.0.1:%d/ (pid %d, store %s) — stop with: hey registry stop\n",
 		port, cmd.Process.Pid, store)

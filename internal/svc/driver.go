@@ -267,9 +267,35 @@ func runInit(inst *Instance, pack Pack) error {
 
 // Start launches the pack's start command as a detached managed process, its
 // output streaming to logs/service.log, and records the PID + running state.
+//
+// Resource policy applied here, before anything is spawned:
+//   - single instance: a live recorded PID is reused (idempotent), and a port
+//     that is already bound — by an orphan from a crash, or by a foreign
+//     process — refuses the start instead of piling a second server on top;
+//   - model-server packs get a pre-launch RAM check (preflightModelRAM) so a
+//     multi-GB model is never loaded into a machine that can't hold it;
+//   - the child is stamped with proc.DaemonChildEnv, so even a misconfigured
+//     pack whose start command resolves to hey itself can never re-exec into
+//     a spawn loop (proc.GuardReexec trips in the child);
+//   - the PID is recorded (inst.Save) immediately; if recording fails, the
+//     just-spawned process is killed rather than left as an untracked orphan
+//     `hey down` could never find.
 func Start(inst *Instance, pack Pack) error {
 	if inst.PID != 0 && proc.Alive(inst.PID) {
 		return nil
+	}
+	if inst.Port != 0 && !portFree(inst.Port) {
+		return fmt.Errorf(
+			"start %s: port 127.0.0.1:%d is already in use, but no live PID is recorded for this instance — "+
+				"refusing to start a second copy. Something else (possibly an orphaned earlier %s) holds the port; "+
+				"free it, then retry",
+			inst.Name, inst.Port, inst.Pack)
+	}
+	if pack.Driver == DriverModelServer && inst.ModelPath != "" {
+		model, _, _ := pack.ResolveModel(inst.ModelTier)
+		if err := preflightModelRAM(inst.Name, inst.ModelPath, model); err != nil {
+			return err
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(inst.LogPath()), 0o755); err != nil {
 		return err
@@ -287,6 +313,7 @@ func Start(inst *Instance, pack Pack) error {
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	proc.Detach(cmd)
+	proc.MarkDaemonChild(cmd, "svc:"+inst.Name)
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
 		return fmt.Errorf("start %s: %w", inst.Name, err)
@@ -296,7 +323,13 @@ func Start(inst *Instance, pack Pack) error {
 	inst.State = StateRunning
 	inst.Started = time.Now()
 	go cmd.Wait() // reap so liveness checks don't see a zombie
-	return inst.Save()
+	if err := inst.Save(); err != nil {
+		// An unrecorded PID is an orphan `hey down` can never find — kill the
+		// process we just spawned rather than leak it.
+		_ = proc.KillTree(cmd.Process.Pid)
+		return fmt.Errorf("start %s: recording pid failed (%w); the spawned process was killed to avoid an orphan", inst.Name, err)
+	}
+	return nil
 }
 
 // WaitReady polls the pack's ready check until it passes or the timeout
