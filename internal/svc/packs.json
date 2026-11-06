@@ -82,6 +82,57 @@
         "grace_seconds": 10
       },
       "protocol": "openai-http"
+    },
+    "dsc": {
+      "pack": "dsc",
+      "driver": "archive-exec",
+      "kind": "service",
+      "versions": {
+        "0.1.0": {
+          "artifacts": {
+            "windows_amd64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_windows_amd64.zip",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "windows_arm64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_windows_arm64.zip",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "darwin_amd64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_darwin_amd64.tar.gz",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "darwin_arm64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_darwin_arm64.tar.gz",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "linux_amd64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_linux_amd64.tar.gz",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "linux_arm64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_linux_arm64.tar.gz",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            }
+          }
+        }
+      },
+      "start": "{bin}/dsc serve --port {port}",
+      "ready": {
+        "http": "http://127.0.0.1:{port}/healthz",
+        "timeout_seconds": 20
+      },
+      "stop": {
+        "signal": "term",
+        "grace_seconds": 5
+      },
+      "protocol": "http",
+      "cors": {
+        "add_origins": [
+          "https://prashantsinha.com",
+          "https://www.prashantsinha.com"
+        ]
+      }
     }
   }
 }

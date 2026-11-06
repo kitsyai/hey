@@ -142,6 +142,7 @@ hey up postgres              # provision + start postgres, register with the hub
 hey up vinci                 # provision + start a local model server (default tier)
 hey up vinci --model tiny    # a smaller model tier for low-RAM machines
 hey up vinci postgres        # bring up more than one at once
+hey up dsc                   # sign with a USB token DSC from web pages (github.com/kitsyai/dsc)
 hey down postgres            # stop it (alias: hey svc stop postgres)
 hey hub status                # is the hub up, what's registered
 ```
@@ -192,6 +193,16 @@ pins are not yet set** — `internal/svc/packs.json`'s `vinci` pack ships with
 placeholder URLs/hashes and `hey up vinci` refuses to run them with a loud,
 specific error rather than silently downloading something unverified; see
 the pack's `TODO-PIN-REQUIRED` markers for exactly what needs pinning.
+
+**dsc** signs PDFs with a digital signature certificate on a USB token
+(ePass2003, ProxKey, Watchdata, mToken, any PKCS#11 token) for sites like
+prashantsinha.com's PDF tools. The page builds the signature and sends only
+the bytes to sign through `/svc/dsc/...`. [dsc](https://github.com/kitsyai/dsc)
+shows a native dialog naming the site and the document before every signature,
+and the token signs; the key never leaves it. On macOS and Linux, point it at
+your token's PKCS#11 driver with `DSC_PKCS11_MODULES=/path/to/driver.so hey up
+dsc` if it isn't in a standard location. The pack adds the sites that use it
+to the hub's origin allow-list (`cors.add_origins`).
 
 ## Development
 
