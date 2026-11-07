@@ -92,27 +92,27 @@
           "artifacts": {
             "windows_amd64": {
               "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_windows_amd64.zip",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "sha256": "ed7ab4bfb332ae646fb7650bce8ce5b3997c05a109eee4db40d4b66e17967bf0"
             },
             "windows_arm64": {
               "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_windows_arm64.zip",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "sha256": "87998fa9f2042fbef58f3c614873836fd13eb56746fe0e3ca3aed1579bb2ff1e"
             },
             "darwin_amd64": {
               "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_darwin_amd64.tar.gz",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "sha256": "784aeef232ae396617f06d2d6b94eb0c588ce40daf74aa0af2d3852e55686075"
             },
             "darwin_arm64": {
               "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_darwin_arm64.tar.gz",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "sha256": "4c963375ed169a3ff8b314f410a8ef802b54ecd1b2148b26603b5e6f666b2321"
             },
             "linux_amd64": {
               "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_linux_amd64.tar.gz",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "sha256": "4648fbf81c2a5623651cde65b8435574c025d7ca75cf3f2937869d973ec7d5d9"
             },
             "linux_arm64": {
               "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.0/dsc_0.1.0_linux_arm64.tar.gz",
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              "sha256": "1f73afe49e86b700cc68544583848466d3a9db1fbe03c7723b6c11a270903aa8"
             }
           }
         }

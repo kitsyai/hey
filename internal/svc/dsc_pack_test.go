@@ -36,5 +36,8 @@ func TestEmbeddedDscPack(t *testing.T) {
 		if !strings.HasPrefix(a.URL, "https://github.com/kitsyai/dsc/releases/download/v") {
 			t.Errorf("%s: unexpected URL %s", plat, a.URL)
 		}
+		if a.Pending() || len(a.SHA256) != 64 {
+			t.Errorf("%s: checksum not pinned", plat)
+		}
 	}
 }
