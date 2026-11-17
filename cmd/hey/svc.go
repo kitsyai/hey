@@ -23,6 +23,8 @@ Usage:
   hey svc logs <instance> [--tail N]                show the service log
   hey svc conn <instance>                           print the connection string
   hey svc rm <instance> [--purge-data]              remove an instance
+  hey svc exec <instance> <command> [args...]       run one of the service's commands
+                                                    (what the PATH shims call, e.g. dsc)
 `
 
 func cmdSvc(args []string) error {
@@ -45,6 +47,8 @@ func cmdSvc(args []string) error {
 		return svcConn(args[1:])
 	case "rm":
 		return svcRm(args[1:])
+	case "exec":
+		return svcExec(args[1:])
 	case "help", "-h", "--help":
 		fmt.Fprint(os.Stderr, svcUsage)
 		return nil
@@ -328,6 +332,9 @@ func svcRm(args []string) error {
 	}
 	if err := os.RemoveAll(dir); err != nil {
 		return err
+	}
+	if pack, perr := packs.Get(inst.Pack); perr == nil {
+		removeServiceShims(name, pack)
 	}
 	fmt.Printf("removed %s and its data\n", name)
 	return nil

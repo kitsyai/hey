@@ -17,6 +17,9 @@ func TestEmbeddedDscPack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(p.Commands) != 1 || p.Commands[0] != "dsc" {
+		t.Fatalf("dsc must be on PATH after hey up: commands %v", p.Commands)
+	}
 	if !p.Stateless {
 		t.Fatal("dsc keeps no data; it must be stateless so hey up upgrades it in place")
 	}

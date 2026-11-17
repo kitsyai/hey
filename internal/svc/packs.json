@@ -88,6 +88,9 @@
       "driver": "archive-exec",
       "kind": "service",
       "stateless": true,
+      "commands": [
+        "dsc"
+      ],
       "versions": {
         "0.1.0": {
           "artifacts": {

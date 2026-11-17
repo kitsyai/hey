@@ -77,6 +77,14 @@ type Pack struct {
 	// with data (postgres) leave it unset: their upgrades stay explicit.
 	Stateless bool `json:"stateless,omitempty"`
 
+	// Commands are executables in {bin} that `hey up` exposes on the shell
+	// PATH, like `hey buddy install` does for tools: each gets a shim next
+	// to the hey executable that runs `hey svc exec <instance> <command>`,
+	// so it always resolves the instance's current version (dsc: `dsc list`,
+	// `dsc diagnose`). Omit for commands that could shadow the user's own
+	// installs.
+	Commands []string `json:"commands,omitempty"`
+
 	Protocol string     `json:"protocol,omitempty"` // "postgres-wire", "http", "openai-http", "mcp"
 	Bridge   *Bridge    `json:"bridge,omitempty"`
 	CORS     CORSPolicy `json:"cors,omitempty"`
@@ -274,6 +282,11 @@ var validDrivers = map[string]bool{
 func validatePack(name string, p Pack) error {
 	if strings.ContainsAny(name, `/\@ `) || name == "" {
 		return fmt.Errorf("invalid pack name %q", name)
+	}
+	for _, c := range p.Commands {
+		if c == "" || c == "hey" || strings.ContainsAny(c, `/\@ .:`) {
+			return fmt.Errorf("pack %q: invalid command name %q", name, c)
+		}
 	}
 	if p.Pack != name {
 		return fmt.Errorf("pack %q: field \"pack\" is %q, must match its key", name, p.Pack)
