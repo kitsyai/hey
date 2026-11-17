@@ -201,7 +201,8 @@ the bytes to sign through `/svc/dsc/...`. [dsc](https://github.com/kitsyai/dsc)
 shows a native dialog naming the site and the document before every signature,
 and the token signs; the key never leaves it. On macOS and Linux, point it at
 your token's PKCS#11 driver with `DSC_PKCS11_MODULES=/path/to/driver.so hey up
-dsc` if it isn't in a standard location. The pack adds the sites that use it
+dsc` if it isn't in a standard location. `hey up dsc` also puts `dsc` on
+your PATH, so `dsc list` and `dsc diagnose` work from any terminal. The pack adds the sites that use it
 to the hub's origin allow-list (`cors.add_origins`). Because dsc keeps no data, `hey up dsc` also
 upgrades an existing install to the newest pinned dsc after `hey self update`.
 

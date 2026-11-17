@@ -17,6 +17,9 @@ func TestEmbeddedDscPack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(p.Commands) != 1 || p.Commands[0] != "dsc" {
+		t.Fatalf("dsc must be on PATH after hey up: commands %v", p.Commands)
+	}
 	if !p.Stateless {
 		t.Fatal("dsc keeps no data; it must be stateless so hey up upgrades it in place")
 	}
@@ -30,7 +33,7 @@ func TestEmbeddedDscPack(t *testing.T) {
 		t.Fatalf("missing prashantsinha.com origin: %v", p.CORS.AddOrigins)
 	}
 	latest := p.LatestVersion()
-	if latest != "0.1.1" {
+	if latest != "0.1.2" {
 		t.Fatalf("hey up dsc must install the newest release, got %s", latest)
 	}
 	v := p.Versions[latest]

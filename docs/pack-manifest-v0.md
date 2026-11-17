@@ -74,6 +74,12 @@ Pack sets do not merge; the first found wins entirely. URL overrides must be
   by replacing its binaries in place (same name and port); without it, an
   existing instance keeps its version until it is removed. Never set it on a
   pack with data (postgres).
+- `commands` — optional list of executables in `{bin}` to put on the shell
+  PATH, as `hey buddy install` does for tools. `hey up` writes a small shim
+  per command next to the hey executable that runs `hey svc exec <instance>
+  <command>`, so it always resolves the instance's current version. A file
+  hey didn't write is never replaced, and `hey svc rm` removes the shims.
+  Leave out commands that could shadow a user's own installs (e.g. `psql`).
 - `versions` — map of semantic version → the artifacts for that version.
 - `artifacts` — map of `"{os}_{arch}"` (Go's `GOOS_GOARCH`, e.g.
   `windows_amd64`, `linux_amd64`, `darwin_arm64`) → one artifact:

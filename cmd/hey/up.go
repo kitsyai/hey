@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kitsyai/hey/internal/home"
@@ -165,6 +166,9 @@ func upOne(name string, pack svc.Pack, version, modelTier string) error {
 	}
 	if conn := svc.Conn(inst, pack); conn != "" {
 		fmt.Printf("  conn: %s\n", conn)
+	}
+	if added := installServiceShims(inst.Name, pack); len(added) > 0 {
+		fmt.Printf("  commands: %s\n", strings.Join(added, ", "))
 	}
 	return nil
 }
