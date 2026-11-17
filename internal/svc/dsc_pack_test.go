@@ -33,7 +33,7 @@ func TestEmbeddedDscPack(t *testing.T) {
 		t.Fatalf("missing prashantsinha.com origin: %v", p.CORS.AddOrigins)
 	}
 	latest := p.LatestVersion()
-	if latest != "0.1.2" {
+	if latest != "0.1.3" {
 		t.Fatalf("hey up dsc must install the newest release, got %s", latest)
 	}
 	v := p.Versions[latest]
