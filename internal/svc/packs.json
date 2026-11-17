@@ -147,6 +147,34 @@
               "sha256": "ed87a8b52b32359ab88fcd5e49007d1d2198b838546b53cbc4ed5a597c8fcf25"
             }
           }
+        },
+        "0.1.2": {
+          "artifacts": {
+            "windows_amd64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.2/dsc_0.1.2_windows_amd64.zip",
+              "sha256": "4b22a5ab5cf9859c2f1b312af0d558dd6b6094493dcfaf63c3b42e510bb1f088"
+            },
+            "windows_arm64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.2/dsc_0.1.2_windows_arm64.zip",
+              "sha256": "ca614d11ec6994a4d7eb3b56464d862f56fd781ded5681b1e6c57cfcf2e0d686"
+            },
+            "darwin_amd64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.2/dsc_0.1.2_darwin_amd64.tar.gz",
+              "sha256": "433dcbe0d78553b52c2358ef46c6131d5c8697553cdc1ad0ed4cb59032c0da9b"
+            },
+            "darwin_arm64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.2/dsc_0.1.2_darwin_arm64.tar.gz",
+              "sha256": "3ac630e8a1e239bf7c93a4d3e6836c428eb093305b05346d3da9fe8b981c2033"
+            },
+            "linux_amd64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.2/dsc_0.1.2_linux_amd64.tar.gz",
+              "sha256": "a2d94c1a46386c494420b3daf2bfb57c19807a317021c62cdab1c5594cb4f50d"
+            },
+            "linux_arm64": {
+              "url": "https://github.com/kitsyai/dsc/releases/download/v0.1.2/dsc_0.1.2_linux_arm64.tar.gz",
+              "sha256": "3ff449deb50a4de34e6099ee37fe83d7ce4b06b177c42e458277eedb6da64363"
+            }
+          }
         }
       },
       "start": "{bin}/dsc serve --port {port}",
