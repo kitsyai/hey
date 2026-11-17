@@ -126,6 +126,11 @@ func up(svcDir, name string, pack Pack, version, tier string, fetcher Fetcher, m
 
 	// Reuse or resume an existing instance.
 	if inst, err := LoadInstance(dir); err == nil {
+		if pack.Stateless && version != "" && inst.Version != version {
+			if err := replaceBinaries(inst, pack, version, fetcher); err != nil {
+				return nil, err
+			}
+		}
 		if hasModel && tier != "" && inst.ModelTier != "" && tier != inst.ModelTier {
 			return nil, fmt.Errorf(
 				"%s is already provisioned with model tier %q; `hey down %s` first to switch to %q",
@@ -215,6 +220,41 @@ func up(svcDir, name string, pack Pack, version, tier string, fetcher Fetcher, m
 		return nil, err
 	}
 	return inst, nil
+}
+
+// replaceBinaries moves a stateless instance to another pack version: it
+// stops the old process, swaps the binaries for the new version's verified
+// artifact, and records the new version. Port, name and data dir are kept.
+// If the download fails, svc.json still names the old version, so the next
+// `hey up` retries the upgrade.
+func replaceBinaries(inst *Instance, pack Pack, version string, fetcher Fetcher) error {
+	art, plat, err := pack.Artifact(version)
+	if err != nil {
+		return err
+	}
+	if art.Pending() {
+		return fmt.Errorf("pack %q %s/%s artifact not pinned yet; refusing to upgrade to an unverified placeholder", pack.Pack, version, plat)
+	}
+	if inst.PID != 0 && proc.Alive(inst.PID) {
+		if err := Stop(inst, pack); err != nil {
+			return fmt.Errorf("upgrade %s: stop %s: %w", inst.Name, inst.Version, err)
+		}
+	}
+	if err := os.RemoveAll(inst.BinDir()); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(inst.BinDir(), 0o755); err != nil {
+		return err
+	}
+	from := inst.Version
+	upgraded := *inst
+	upgraded.Version, upgraded.Platform, upgraded.BinSubdir = version, plat, art.BinSubdir
+	upgraded.PID, upgraded.State = 0, StateStopped
+	if err := provision(&upgraded, pack, art, fetcher); err != nil {
+		return fmt.Errorf("upgrade %s %s -> %s: %w", inst.Name, from, version, err)
+	}
+	*inst = upgraded
+	return inst.Save()
 }
 
 // provision downloads+verifies+extracts the artifact into the instance bin dir

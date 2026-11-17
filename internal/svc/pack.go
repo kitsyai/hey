@@ -70,6 +70,13 @@ type Pack struct {
 	Conn     string             `json:"conn,omitempty"`
 	Stop     StopSpec           `json:"stop"`
 
+	// Stateless marks a pack whose instances keep no data worth preserving
+	// (dsc: a signer in front of a USB token). `hey up` then moves an existing
+	// instance to a newer pinned version by replacing its binaries in place,
+	// instead of reusing the old ones until `hey svc rm --purge-data`. Packs
+	// with data (postgres) leave it unset: their upgrades stay explicit.
+	Stateless bool `json:"stateless,omitempty"`
+
 	Protocol string     `json:"protocol,omitempty"` // "postgres-wire", "http", "openai-http", "mcp"
 	Bridge   *Bridge    `json:"bridge,omitempty"`
 	CORS     CORSPolicy `json:"cors,omitempty"`

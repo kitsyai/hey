@@ -68,6 +68,12 @@ Pack sets do not merge; the first found wins entirely. URL overrides must be
 - `kind` — `service` (a long-running managed process, the default) or
   `runtime` (a fetch-verify-exec artifact with no lifecycle; see
   feature-set-v1 §2). v0's driver implements `service`.
+- `stateless` — optional, default `false`. `true` declares that instances
+  keep no data worth preserving (e.g. `dsc`, a signer in front of a USB
+  token). Then `hey up` moves an existing instance to a newer pinned version
+  by replacing its binaries in place (same name and port); without it, an
+  existing instance keeps its version until it is removed. Never set it on a
+  pack with data (postgres).
 - `versions` — map of semantic version → the artifacts for that version.
 - `artifacts` — map of `"{os}_{arch}"` (Go's `GOOS_GOARCH`, e.g.
   `windows_amd64`, `linux_amd64`, `darwin_arm64`) → one artifact:

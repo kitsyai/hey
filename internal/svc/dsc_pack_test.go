@@ -17,6 +17,9 @@ func TestEmbeddedDscPack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !p.Stateless {
+		t.Fatal("dsc keeps no data; it must be stateless so hey up upgrades it in place")
+	}
 	if p.Protocol != "http" || p.Bridge != nil || p.Driver != "archive-exec" {
 		t.Fatalf("dsc must be a plain proxied HTTP service: %+v", p)
 	}
@@ -26,14 +29,18 @@ func TestEmbeddedDscPack(t *testing.T) {
 	if !slices.Contains(p.CORS.AddOrigins, "https://prashantsinha.com") {
 		t.Fatalf("missing prashantsinha.com origin: %v", p.CORS.AddOrigins)
 	}
-	v := p.Versions[p.LatestVersion()]
+	latest := p.LatestVersion()
+	if latest != "0.1.1" {
+		t.Fatalf("hey up dsc must install the newest release, got %s", latest)
+	}
+	v := p.Versions[latest]
 	for _, plat := range []string{"windows_amd64", "windows_arm64", "darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64"} {
 		a, ok := v.Artifacts[plat]
 		if !ok {
 			t.Errorf("no %s artifact", plat)
 			continue
 		}
-		if !strings.HasPrefix(a.URL, "https://github.com/kitsyai/dsc/releases/download/v") {
+		if !strings.HasPrefix(a.URL, "https://github.com/kitsyai/dsc/releases/download/v"+latest+"/") {
 			t.Errorf("%s: unexpected URL %s", plat, a.URL)
 		}
 		if a.Pending() || len(a.SHA256) != 64 {
